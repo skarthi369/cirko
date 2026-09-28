@@ -21,7 +21,14 @@ export type PartDef = {
   h: number;
   pins: Pin[];
   defaults?: Record<string, string>;
-  fields?: { key: string; label: string; unit?: string; kind?: "number" | "text" | "slider"; min?: number; max?: number }[];
+  fields?: {
+    key: string;
+    label: string;
+    unit?: string;
+    kind?: "number" | "text" | "slider";
+    min?: number;
+    max?: number;
+  }[];
   render: (props: Record<string, string>, sim?: PartVisual) => ReactNode;
 };
 
@@ -71,8 +78,16 @@ export const PART_DEFS: PartDef[] = [
     render: (p) => (
       <>
         {box(80, 48)}
-        <rect x={14} y={10} width={52} height={28} rx={3} fill="var(--part-accent)" opacity={0.15} />
-        {label(`${p['voltage'] ?? "9"}V`, 80, 30, 13)}
+        <rect
+          x={14}
+          y={10}
+          width={52}
+          height={28}
+          rx={3}
+          fill="var(--part-accent)"
+          opacity={0.15}
+        />
+        {label(`${p["voltage"] ?? "9"}V`, 80, 30, 13)}
       </>
     ),
   },
@@ -92,12 +107,28 @@ export const PART_DEFS: PartDef[] = [
       <>
         <line x1={0} y1={14} x2={16} y2={14} stroke={stroke} strokeWidth={2} />
         <line x1={64} y1={14} x2={80} y2={14} stroke={stroke} strokeWidth={2} />
-        <rect x={16} y={4} width={48} height={20} rx={4} fill="var(--part-body)" stroke={stroke} strokeWidth={1.5} />
+        <rect
+          x={16}
+          y={4}
+          width={48}
+          height={20}
+          rx={4}
+          fill="var(--part-body)"
+          stroke={stroke}
+          strokeWidth={1.5}
+        />
         <rect x={24} y={4} width={4} height={20} fill="#8b5a2b" />
         <rect x={34} y={4} width={4} height={20} fill="#c0392b" />
         <rect x={44} y={4} width={4} height={20} fill="#e0b400" />
-        <text x={40} y={40} textAnchor="middle" fontSize={10} fill="var(--part-text)" fontFamily="var(--font-mono)">
-          {p['resistance'] ?? "220"}Ω
+        <text
+          x={40}
+          y={40}
+          textAnchor="middle"
+          fontSize={10}
+          fill="var(--part-text)"
+          fontFamily="var(--font-mono)"
+        >
+          {p["resistance"] ?? "220"}Ω
         </text>
       </>
     ),
@@ -115,7 +146,7 @@ export const PART_DEFS: PartDef[] = [
     defaults: { color: "red" },
     fields: [{ key: "color", label: "Color" }],
     render: (p, sim) => {
-      const c = LED_COLORS[(p['color'] ?? "red").toLowerCase()] ?? "#ff4d4d";
+      const c = LED_COLORS[(p["color"] ?? "red").toLowerCase()] ?? "#ff4d4d";
       const b = sim?.live ? (sim.brightness ?? 0) : 0;
       return (
         <>
@@ -156,7 +187,7 @@ export const PART_DEFS: PartDef[] = [
           x1={16}
           y1={20}
           x2={56}
-          y2={(p['state'] ?? "open") === "closed" ? 20 : 8}
+          y2={(p["state"] ?? "open") === "closed" ? 20 : 8}
           stroke="var(--part-accent)"
           strokeWidth={3}
           strokeLinecap="round"
@@ -179,7 +210,7 @@ export const PART_DEFS: PartDef[] = [
     defaults: { pressed: "no" },
     fields: [{ key: "pressed", label: "Pressed (yes/no)" }],
     render: (p) => {
-      const down = (p['pressed'] ?? "no") === "yes";
+      const down = (p["pressed"] ?? "no") === "yes";
       return (
         <>
           {box(56, 56, 5)}
@@ -217,7 +248,15 @@ export const PART_DEFS: PartDef[] = [
         <circle cx={28} cy={26} r={4} fill={stroke} />
         {sim?.live && sim.sounding && (
           <>
-            <circle cx={28} cy={26} r={26} fill="none" stroke="var(--part-accent)" strokeWidth={2} opacity={0.7}>
+            <circle
+              cx={28}
+              cy={26}
+              r={26}
+              fill="none"
+              stroke="var(--part-accent)"
+              strokeWidth={2}
+              opacity={0.7}
+            >
               <animate attributeName="r" values="24;34" dur="0.7s" repeatCount="indefinite" />
               <animate attributeName="opacity" values="0.7;0" dur="0.7s" repeatCount="indefinite" />
             </circle>
@@ -252,9 +291,33 @@ export const PART_DEFS: PartDef[] = [
           {box(80, 56, 10)}
           <circle cx={48} cy={28} r={16} fill="none" stroke={stroke} strokeWidth={1.5} />
           <g>
-            <line x1={48} y1={28} x2={48} y2={14} stroke="var(--part-accent)" strokeWidth={3} strokeLinecap="round" />
-            <line x1={48} y1={28} x2={60} y2={35} stroke="var(--part-accent)" strokeWidth={3} strokeLinecap="round" />
-            <line x1={48} y1={28} x2={36} y2={35} stroke="var(--part-accent)" strokeWidth={3} strokeLinecap="round" />
+            <line
+              x1={48}
+              y1={28}
+              x2={48}
+              y2={14}
+              stroke="var(--part-accent)"
+              strokeWidth={3}
+              strokeLinecap="round"
+            />
+            <line
+              x1={48}
+              y1={28}
+              x2={60}
+              y2={35}
+              stroke="var(--part-accent)"
+              strokeWidth={3}
+              strokeLinecap="round"
+            />
+            <line
+              x1={48}
+              y1={28}
+              x2={36}
+              y2={35}
+              stroke="var(--part-accent)"
+              strokeWidth={3}
+              strokeLinecap="round"
+            />
             {dur > 0 && (
               <animateTransform
                 attributeName="transform"
@@ -289,7 +352,9 @@ export const PART_DEFS: PartDef[] = [
       const b = sim?.live ? (sim.brightness ?? 0) : 0;
       return (
         <>
-          {b > 0.02 && <circle cx={32} cy={24} r={18 + 16 * b} fill="url(#rgbgrad)" opacity={0.25 * b + 0.1} />}
+          {b > 0.02 && (
+            <circle cx={32} cy={24} r={18 + 16 * b} fill="url(#rgbgrad)" opacity={0.25 * b + 0.1} />
+          )}
           <circle
             cx={32}
             cy={24}
@@ -355,13 +420,21 @@ export const PART_DEFS: PartDef[] = [
       { key: "position", label: "Knob position", unit: "%", kind: "slider", min: 0, max: 100 },
     ],
     render: (p) => {
-      const pos = Math.min(100, Math.max(0, parseFloat(p['position'] ?? "50") || 0));
+      const pos = Math.min(100, Math.max(0, parseFloat(p["position"] ?? "50") || 0));
       const angle = -135 + (pos / 100) * 270;
       return (
         <>
           <circle cx={36} cy={28} r={24} fill={body} stroke={stroke} strokeWidth={1.5} />
           <g transform={`rotate(${angle} 36 28)`}>
-            <line x1={36} y1={28} x2={36} y2={8} stroke="var(--part-accent)" strokeWidth={3} strokeLinecap="round" />
+            <line
+              x1={36}
+              y1={28}
+              x2={36}
+              y2={8}
+              stroke="var(--part-accent)"
+              strokeWidth={3}
+              strokeLinecap="round"
+            />
           </g>
           {[12, 36, 60].map((x) => (
             <line key={x} x1={x} y1={50} x2={x} y2={64} stroke={stroke} strokeWidth={2} />
@@ -383,10 +456,18 @@ export const PART_DEFS: PartDef[] = [
     defaults: { light: "50" },
     fields: [{ key: "light", label: "Light level", unit: "%", kind: "slider", min: 0, max: 100 }],
     render: (p) => {
-      const light = Math.min(100, Math.max(0, parseFloat(p['light'] ?? "50") || 0)) / 100;
+      const light = Math.min(100, Math.max(0, parseFloat(p["light"] ?? "50") || 0)) / 100;
       return (
         <>
-          <circle cx={28} cy={24} r={18} fill="#d9c27a" opacity={0.35 + 0.65 * light} stroke={stroke} strokeWidth={1.5} />
+          <circle
+            cx={28}
+            cy={24}
+            r={18}
+            fill="#d9c27a"
+            opacity={0.35 + 0.65 * light}
+            stroke={stroke}
+            strokeWidth={1.5}
+          />
           <path d="M14 24 l7 -8 l7 16 l7 -16 l7 8" fill="none" stroke="#5c4a1a" strokeWidth={2} />
           <line x1={16} y1={40} x2={16} y2={60} stroke={stroke} strokeWidth={2} />
           <line x1={40} y1={40} x2={40} y2={60} stroke={stroke} strokeWidth={2} />
@@ -409,9 +490,21 @@ export const PART_DEFS: PartDef[] = [
     fields: [{ key: "temp", label: "Temperature", unit: "°C", kind: "slider", min: -40, max: 125 }],
     render: (p) => (
       <>
-        <path d="M6 26 A22 22 0 0 1 50 26 L50 40 L6 40 Z" fill={body} stroke={stroke} strokeWidth={1.5} />
-        <text x={28} y={22} textAnchor="middle" fontSize={11} fill="var(--part-text)" fontFamily="var(--font-mono)">
-          {`${p['temp'] ?? "25"}°`}
+        <path
+          d="M6 26 A22 22 0 0 1 50 26 L50 40 L6 40 Z"
+          fill={body}
+          stroke={stroke}
+          strokeWidth={1.5}
+        />
+        <text
+          x={28}
+          y={22}
+          textAnchor="middle"
+          fontSize={11}
+          fill="var(--part-text)"
+          fontFamily="var(--font-mono)"
+        >
+          {`${p["temp"] ?? "25"}°`}
         </text>
         {[12, 28, 44].map((x) => (
           <line key={x} x1={x} y1={40} x2={x} y2={60} stroke={stroke} strokeWidth={2} />
@@ -426,11 +519,29 @@ export const PART_DEFS: PartDef[] = [
     w: 280,
     h: 190,
     pins: [
-      ...["D13", "D12", "D11", "D10", "D9", "D8", "D7", "D6", "D5", "D4", "D3", "D2", "D1", "D0"].map(
-        (l, i) => ({ id: l, x: 268 - i * 18, y: 0, label: l }),
-      ),
+      ...[
+        "D13",
+        "D12",
+        "D11",
+        "D10",
+        "D9",
+        "D8",
+        "D7",
+        "D6",
+        "D5",
+        "D4",
+        "D3",
+        "D2",
+        "D1",
+        "D0",
+      ].map((l, i) => ({ id: l, x: 268 - i * 18, y: 0, label: l })),
       ...["GND", "5V", "3V3", "VIN"].map((l, i) => ({ id: l, x: 60 + i * 24, y: 190, label: l })),
-      ...["A0", "A1", "A2", "A3", "A4", "A5"].map((l, i) => ({ id: l, x: 168 + i * 18, y: 190, label: l })),
+      ...["A0", "A1", "A2", "A3", "A4", "A5"].map((l, i) => ({
+        id: l,
+        x: 168 + i * 18,
+        y: 190,
+        label: l,
+      })),
     ],
     render: (_p, sim) => (
       <>
@@ -438,7 +549,9 @@ export const PART_DEFS: PartDef[] = [
         <rect x={16} y={26} width={70} height={44} rx={4} fill="#132726" stroke="#0a3b36" />
         <rect x={120} y={70} width={90} height={40} rx={3} fill="#1b1b1b" />
         <circle cx={100} cy={40} r={5} fill="#8bd450" opacity={sim?.live ? 1 : 0.25}>
-          {sim?.live && <animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite" />}
+          {sim?.live && (
+            <animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite" />
+          )}
         </circle>
         <text x={140} y={150} fontSize={16} fill="#d7f5f0" fontFamily="var(--font-mono)">
           UNO
@@ -448,7 +561,10 @@ export const PART_DEFS: PartDef[] = [
   },
 ];
 
-export const PART_MAP = Object.fromEntries(PART_DEFS.map((d) => [d.type, d])) as Record<string, PartDef>;
+export const PART_MAP = Object.fromEntries(PART_DEFS.map((d) => [d.type, d])) as Record<
+  string,
+  PartDef
+>;
 
 export function rotatePoint(x: number, y: number, w: number, h: number, rot: number) {
   const cx = w / 2;

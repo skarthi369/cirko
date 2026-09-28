@@ -1,0 +1,6 @@
+{
+  "name": "CirkitLab",
+  "description": "Design and wire electronic circuits in your browser, plus 9 university-grade interactive Virtual Labs across Optical Communication, Digital Electronics, and Communication Systems.",
+  "permissions": [],
+  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

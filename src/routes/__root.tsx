@@ -73,10 +73,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "CirkitLab — Online Circuit Designer" },
-      { name: "description", content: "Design and wire electronic circuits in your browser." },
-      { property: "og:title", content: "CirkitLab" },
-      { property: "og:description", content: "Design and wire electronic circuits in your browser." },
+      { title: "CirkitLab — Online Circuit Designer & Virtual Labs" },
+      {
+        name: "description",
+        content:
+          "Design and wire electronic circuits in your browser, plus 9 university-grade interactive Virtual Labs across Optical Communication, Digital Electronics, and Communication Systems.",
+      },
+      { property: "og:title", content: "CirkitLab — Online Circuit Designer & Virtual Labs" },
+      {
+        property: "og:description",
+        content:
+          "Design and wire electronic circuits in your browser, plus 9 university-grade interactive Virtual Labs across Optical Communication, Digital Electronics, and Communication Systems.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -102,11 +110,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(typeof window!=="undefined"){var o=window.fetch;var c=typeof o==="function"?o.bind(window):o;Object.defineProperty(window,"fetch",{get:function(){return c;},set:function(v){c=v;},configurable:true,enumerable:true});}}catch(e){}})();`,
+          }}
+        />
         <HeadContent />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         {children}
         <Scripts />
       </body>

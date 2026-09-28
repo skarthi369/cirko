@@ -68,21 +68,21 @@ export function modelsFor(part: PlacedPart): Model[] {
   const p = part.props;
   switch (part.type) {
     case "battery":
-      return [{ a: "pos", b: "neg", R: 0.15, E: num(p['voltage'], 9) }];
+      return [{ a: "pos", b: "neg", R: 0.15, E: num(p["voltage"], 9) }];
 
     case "resistor":
-      return [{ a: "a", b: "b", R: Math.max(0.1, num(p['resistance'], 220)), E: 0 }];
+      return [{ a: "a", b: "b", R: Math.max(0.1, num(p["resistance"], 220)), E: 0 }];
 
     case "led": {
-      const vf = LED_VF[(p['color'] ?? "red").toLowerCase()] ?? 1.8;
+      const vf = LED_VF[(p["color"] ?? "red").toLowerCase()] ?? 1.8;
       return [{ a: "anode", b: "cathode", R: R_OFF, E: 0, diode: { vf, rOn: 14 } }];
     }
 
     case "switch":
-      return [{ a: "a", b: "b", R: (p['state'] ?? "open") === "closed" ? R_ON : R_OFF, E: 0 }];
+      return [{ a: "a", b: "b", R: (p["state"] ?? "open") === "closed" ? R_ON : R_OFF, E: 0 }];
 
     case "pushbutton": {
-      const down = (p['pressed'] ?? "no") === "yes";
+      const down = (p["pressed"] ?? "no") === "yes";
       return [
         { a: "a1", b: "a2", R: R_ON, E: 0 },
         { a: "b1", b: "b2", R: R_ON, E: 0 },
@@ -91,10 +91,10 @@ export function modelsFor(part: PlacedPart): Model[] {
     }
 
     case "buzzer":
-      return [{ a: "pos", b: "neg", R: Math.max(1, num(p['resistance'], 120)), E: 0 }];
+      return [{ a: "pos", b: "neg", R: Math.max(1, num(p["resistance"], 120)), E: 0 }];
 
     case "motor":
-      return [{ a: "t1", b: "t2", R: Math.max(0.5, num(p['resistance'], 8)), E: 0 }];
+      return [{ a: "t1", b: "t2", R: Math.max(0.5, num(p["resistance"], 8)), E: 0 }];
 
     case "rgbled": {
       return [
@@ -116,8 +116,8 @@ export function modelsFor(part: PlacedPart): Model[] {
     }
 
     case "potentiometer": {
-      const total = Math.max(1, num(p['resistance'], 10000));
-      const pos = Math.min(100, Math.max(0, num(p['position'], 50))) / 100;
+      const total = Math.max(1, num(p["resistance"], 10000));
+      const pos = Math.min(100, Math.max(0, num(p["position"], 50))) / 100;
       return [
         { a: "t1", b: "wiper", R: Math.max(0.5, total * pos), E: 0 },
         { a: "wiper", b: "t2", R: Math.max(0.5, total * (1 - pos)), E: 0 },
@@ -125,7 +125,7 @@ export function modelsFor(part: PlacedPart): Model[] {
     }
 
     case "photoresistor": {
-      const light = Math.min(100, Math.max(0, num(p['light'], 50)));
+      const light = Math.min(100, Math.max(0, num(p["light"], 50)));
       // dark ~1 MΩ, bright ~200 Ω
       const R = 200 + 1_000_000 * Math.pow(1 - light / 100, 2.2);
       return [{ a: "a", b: "b", R, E: 0 }];
@@ -133,7 +133,7 @@ export function modelsFor(part: PlacedPart): Model[] {
 
     case "tempsensor": {
       // TMP36-like: Vout = 0.5 V + 10 mV/°C, 1 kΩ output impedance
-      const t = num(p['temp'], 25);
+      const t = num(p["temp"], 25);
       const vout = 0.5 + 0.01 * t;
       return [
         { a: "vcc", b: "gnd", R: 50000, E: 0 },
@@ -226,7 +226,8 @@ export function simulate(design: Design): SimResult {
     if (!def) continue;
     for (const pin of def.pins) find(key(part.id, pin.id));
   }
-  for (const w of design.wires) union(key(w.from.partId, w.from.pinId), key(w.to.partId, w.to.pinId));
+  for (const w of design.wires)
+    union(key(w.from.partId, w.from.pinId), key(w.to.partId, w.to.pinId));
 
   /* branches */
   const branches: Branch[] = [];
@@ -371,9 +372,9 @@ export function simulate(design: Design): SimResult {
         sim.brightness = clamp01(Math.abs(sim.current) / 0.02);
         break;
       case "rgbled": {
-        const ir = Math.abs(sim.pinCurrents['r'] ?? 0);
-        const ig = Math.abs(sim.pinCurrents['g'] ?? 0);
-        const ib = Math.abs(sim.pinCurrents['b'] ?? 0);
+        const ir = Math.abs(sim.pinCurrents["r"] ?? 0);
+        const ig = Math.abs(sim.pinCurrents["g"] ?? 0);
+        const ib = Math.abs(sim.pinCurrents["b"] ?? 0);
         sim.brightness = clamp01(Math.max(ir, ig, ib) / 0.02);
         sim.reading = `R ${(ir * 1000).toFixed(1)} mA · G ${(ig * 1000).toFixed(1)} mA · B ${(ib * 1000).toFixed(1)} mA`;
         break;
@@ -382,28 +383,28 @@ export function simulate(design: Design): SimResult {
         sim.brightness = clamp01(Math.abs(sim.current) / 0.015);
         break;
       case "motor": {
-        const nominal = num(p['voltage'], 9);
-        sim.rpm = Math.round(clamp01(Math.abs(sim.voltage) / nominal) * num(p['rpm'], 6000));
+        const nominal = num(p["voltage"], 9);
+        sim.rpm = Math.round(clamp01(Math.abs(sim.voltage) / nominal) * num(p["rpm"], 6000));
         break;
       }
       case "buzzer":
         sim.sounding = Math.abs(sim.voltage) > 1.5;
-        sim.reading = sim.sounding ? `${num(p['tone'], 2400)} Hz` : "silent";
+        sim.reading = sim.sounding ? `${num(p["tone"], 2400)} Hz` : "silent";
         break;
       case "photoresistor": {
-        const light = num(p['light'], 50);
+        const light = num(p["light"], 50);
         const R = 200 + 1_000_000 * Math.pow(1 - Math.min(100, Math.max(0, light)) / 100, 2.2);
         sim.reading = `${light.toFixed(0)}% light · ${fmtOhm(R)}`;
         break;
       }
       case "tempsensor": {
-        const t = num(p['temp'], 25);
-        sim.reading = `${t.toFixed(1)} °C · out ${(sim.pins['out'] ?? 0).toFixed(2)} V`;
+        const t = num(p["temp"], 25);
+        sim.reading = `${t.toFixed(1)} °C · out ${(sim.pins["out"] ?? 0).toFixed(2)} V`;
         break;
       }
       case "potentiometer": {
-        const pos = num(p['position'], 50);
-        sim.reading = `${pos.toFixed(0)}% · wiper ${(sim.pins['wiper'] ?? 0).toFixed(2)} V`;
+        const pos = num(p["position"], 50);
+        sim.reading = `${pos.toFixed(0)}% · wiper ${(sim.pins["wiper"] ?? 0).toFixed(2)} V`;
         break;
       }
       case "arduino": {

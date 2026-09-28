@@ -38,9 +38,53 @@ type TokKind = "num" | "str" | "char" | "id" | "punc" | "eof";
 type Tok = { kind: TokKind; value: string; line: number };
 
 const PUNCS = [
-  "<<=", ">>=", "...",
-  "==", "!=", "<=", ">=", "&&", "||", "++", "--", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "->", "::",
-  "{", "}", "(", ")", "[", "]", ";", ",", ".", "+", "-", "*", "/", "%", "=", "<", ">", "!", "&", "|", "^", "~", "?", ":",
+  "<<=",
+  ">>=",
+  "...",
+  "==",
+  "!=",
+  "<=",
+  ">=",
+  "&&",
+  "||",
+  "++",
+  "--",
+  "+=",
+  "-=",
+  "*=",
+  "/=",
+  "%=",
+  "&=",
+  "|=",
+  "^=",
+  "<<",
+  ">>",
+  "->",
+  "::",
+  "{",
+  "}",
+  "(",
+  ")",
+  "[",
+  "]",
+  ";",
+  ",",
+  ".",
+  "+",
+  "-",
+  "*",
+  "/",
+  "%",
+  "=",
+  "<",
+  ">",
+  "!",
+  "&",
+  "|",
+  "^",
+  "~",
+  "?",
+  ":",
 ];
 
 function lex(src: string): Tok[] {
@@ -88,7 +132,10 @@ function lex(src: string): Tok[] {
     }
     if (/[0-9]/.test(c) || (c === "." && /[0-9]/.test(src[i + 1] ?? ""))) {
       let j = i;
-      if (c === "0" && (src[i + 1] === "x" || src[i + 1] === "X" || src[i + 1] === "b" || src[i + 1] === "B")) {
+      if (
+        c === "0" &&
+        (src[i + 1] === "x" || src[i + 1] === "X" || src[i + 1] === "b" || src[i + 1] === "B")
+      ) {
         j = i + 2;
         while (j < src.length && /[0-9a-fA-F]/.test(src[j]!)) j++;
       } else {
@@ -169,9 +216,30 @@ type Stmt =
 type FnDef = { name: string; params: string[]; body: Stmt };
 
 const TYPE_WORDS = new Set([
-  "void", "int", "long", "short", "char", "float", "double", "bool", "boolean", "byte", "word",
-  "unsigned", "signed", "const", "static", "volatile", "uint8_t", "uint16_t", "uint32_t",
-  "int8_t", "int16_t", "int32_t", "size_t", "String",
+  "void",
+  "int",
+  "long",
+  "short",
+  "char",
+  "float",
+  "double",
+  "bool",
+  "boolean",
+  "byte",
+  "word",
+  "unsigned",
+  "signed",
+  "const",
+  "static",
+  "volatile",
+  "uint8_t",
+  "uint16_t",
+  "uint32_t",
+  "int8_t",
+  "int16_t",
+  "int32_t",
+  "size_t",
+  "String",
 ]);
 
 function parse(src: string): { fns: Map<string, FnDef>; globals: Stmt[] } {
@@ -181,7 +249,11 @@ function parse(src: string): { fns: Map<string, FnDef>; globals: Stmt[] } {
   const at = (v: string) => peek().value === v && (peek().kind === "punc" || peek().kind === "id");
   const next = () => toks[pos++]!;
   const expect = (v: string) => {
-    if (!at(v)) throw new SketchError(`Expected "${v}" but found "${peek().value || "end of file"}"`, peek().line);
+    if (!at(v))
+      throw new SketchError(
+        `Expected "${v}" but found "${peek().value || "end of file"}"`,
+        peek().line,
+      );
     return next();
   };
   const eat = (v: string) => (at(v) ? (next(), true) : false);
@@ -273,13 +345,24 @@ function parse(src: string): { fns: Map<string, FnDef>; globals: Stmt[] } {
   }
 
   const PREC: Record<string, number> = {
-    "*": 11, "/": 11, "%": 11,
-    "+": 10, "-": 10,
-    "<<": 9, ">>": 9,
-    "<": 8, "<=": 8, ">": 8, ">=": 8,
-    "==": 7, "!=": 7,
-    "&": 6, "^": 5, "|": 4,
-    "&&": 3, "||": 2,
+    "*": 11,
+    "/": 11,
+    "%": 11,
+    "+": 10,
+    "-": 10,
+    "<<": 9,
+    ">>": 9,
+    "<": 8,
+    "<=": 8,
+    ">": 8,
+    ">=": 8,
+    "==": 7,
+    "!=": 7,
+    "&": 6,
+    "^": 5,
+    "|": 4,
+    "&&": 3,
+    "||": 2,
   };
 
   function parseBin(minPrec: number): Expr {
@@ -534,9 +617,25 @@ class Scope {
 }
 
 const CONSTANTS: Record<string, number> = {
-  HIGH: 1, LOW: 0, true: 1, false: 0, INPUT: 0, OUTPUT: 1, INPUT_PULLUP: 2,
-  LED_BUILTIN: 13, PI: Math.PI, A0: 14, A1: 15, A2: 16, A3: 17, A4: 18, A5: 19,
-  DEC: 10, HEX: 16, BIN: 2, OCT: 8,
+  HIGH: 1,
+  LOW: 0,
+  true: 1,
+  false: 0,
+  INPUT: 0,
+  OUTPUT: 1,
+  INPUT_PULLUP: 2,
+  LED_BUILTIN: 13,
+  PI: Math.PI,
+  A0: 14,
+  A1: 15,
+  A2: 16,
+  A3: 17,
+  A4: 18,
+  A5: 19,
+  DEC: 10,
+  HEX: 16,
+  BIN: 2,
+  OCT: 8,
 };
 
 const BREAK = Symbol("break");
@@ -552,7 +651,10 @@ export class Sketch {
   private startedAt = 0;
   private steps = 0;
 
-  constructor(source: string, private host: SketchHost) {
+  constructor(
+    source: string,
+    private host: SketchHost,
+  ) {
     const { fns, globals } = parse(source);
     this.fns = fns;
     this.globalStmts = globals;
@@ -583,7 +685,9 @@ export class Sketch {
   private budget() {
     if (++this.steps > 200000) {
       this.steps = 0;
-      throw new SketchError("This sketch is looping without any delay — add a delay() so the board can breathe.");
+      throw new SketchError(
+        "This sketch is looping without any delay — add a delay() so the board can breathe.",
+      );
     }
   }
 
@@ -702,32 +806,56 @@ export class Sketch {
         return cur;
       }
       case "bin": {
-        if (e.op === "&&") return truthy(yield* this.eval(e.a, scope)) && truthy(yield* this.eval(e.b, scope)) ? 1 : 0;
-        if (e.op === "||") return truthy(yield* this.eval(e.a, scope)) || truthy(yield* this.eval(e.b, scope)) ? 1 : 0;
+        if (e.op === "&&")
+          return truthy(yield* this.eval(e.a, scope)) && truthy(yield* this.eval(e.b, scope))
+            ? 1
+            : 0;
+        if (e.op === "||")
+          return truthy(yield* this.eval(e.a, scope)) || truthy(yield* this.eval(e.b, scope))
+            ? 1
+            : 0;
         const a = yield* this.eval(e.a, scope);
         const b = yield* this.eval(e.b, scope);
         if (e.op === ",") return b;
-        if (e.op === "+" && (typeof a === "string" || typeof b === "string")) return `${str(a)}${str(b)}`;
+        if (e.op === "+" && (typeof a === "string" || typeof b === "string"))
+          return `${str(a)}${str(b)}`;
         const x = Number(a);
         const y = Number(b);
         switch (e.op) {
-          case "+": return x + y;
-          case "-": return x - y;
-          case "*": return x * y;
-          case "/": return y === 0 ? 0 : x / y;
-          case "%": return y === 0 ? 0 : x % y;
-          case "<": return x < y ? 1 : 0;
-          case "<=": return x <= y ? 1 : 0;
-          case ">": return x > y ? 1 : 0;
-          case ">=": return x >= y ? 1 : 0;
-          case "==": return x === y ? 1 : 0;
-          case "!=": return x !== y ? 1 : 0;
-          case "&": return x & y;
-          case "|": return x | y;
-          case "^": return x ^ y;
-          case "<<": return x << y;
-          case ">>": return x >> y;
-          default: return 0;
+          case "+":
+            return x + y;
+          case "-":
+            return x - y;
+          case "*":
+            return x * y;
+          case "/":
+            return y === 0 ? 0 : x / y;
+          case "%":
+            return y === 0 ? 0 : x % y;
+          case "<":
+            return x < y ? 1 : 0;
+          case "<=":
+            return x <= y ? 1 : 0;
+          case ">":
+            return x > y ? 1 : 0;
+          case ">=":
+            return x >= y ? 1 : 0;
+          case "==":
+            return x === y ? 1 : 0;
+          case "!=":
+            return x !== y ? 1 : 0;
+          case "&":
+            return x & y;
+          case "|":
+            return x | y;
+          case "^":
+            return x ^ y;
+          case "<<":
+            return x << y;
+          case ">>":
+            return x >> y;
+          default:
+            return 0;
         }
       }
       case "cond":
@@ -739,22 +867,37 @@ export class Sketch {
         if (e.op !== "=") {
           const cur = yield* this.eval(e.target, scope);
           const op = e.op.slice(0, -1);
-          if (op === "+" && (typeof cur === "string" || typeof value === "string")) value = `${str(cur)}${str(value)}`;
+          if (op === "+" && (typeof cur === "string" || typeof value === "string"))
+            value = `${str(cur)}${str(value)}`;
           else {
             const x = Number(cur);
             const y = Number(value);
             value =
-              op === "+" ? x + y
-              : op === "-" ? x - y
-              : op === "*" ? x * y
-              : op === "/" ? (y === 0 ? 0 : x / y)
-              : op === "%" ? (y === 0 ? 0 : x % y)
-              : op === "&" ? (x & y)
-              : op === "|" ? (x | y)
-              : op === "^" ? (x ^ y)
-              : op === "<<" ? x << y
-              : op === ">>" ? x >> y
-              : y;
+              op === "+"
+                ? x + y
+                : op === "-"
+                  ? x - y
+                  : op === "*"
+                    ? x * y
+                    : op === "/"
+                      ? y === 0
+                        ? 0
+                        : x / y
+                      : op === "%"
+                        ? y === 0
+                          ? 0
+                          : x % y
+                        : op === "&"
+                          ? x & y
+                          : op === "|"
+                            ? x | y
+                            : op === "^"
+                              ? x ^ y
+                              : op === "<<"
+                                ? x << y
+                                : op === ">>"
+                                  ? x >> y
+                                  : y;
           }
         }
         yield* this.store(e.target, value, scope);
@@ -896,7 +1039,8 @@ function fmtSerial(args: Value[]): string {
   if (typeof v === "number" && base && [2, 8, 16].includes(base)) {
     return Math.round(v).toString(base).toUpperCase();
   }
-  if (typeof v === "number" && args.length > 1 && Number.isFinite(base)) return v.toFixed(base ?? 2);
+  if (typeof v === "number" && args.length > 1 && Number.isFinite(base))
+    return v.toFixed(base ?? 2);
   return str(v);
 }
 

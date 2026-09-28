@@ -22,6 +22,14 @@ export type Design = {
   wires: Wire[];
 };
 
-export const WIRE_COLORS = ["#f5a524", "#ff5d5d", "#4dd6c1", "#6aa9ff", "#8bd450", "#e7e7e7", "#1f2933"];
+export const WIRE_COLORS = [
+  "#f5a524",
+  "#ff5d5d",
+  "#4dd6c1",
+  "#6aa9ff",
+  "#8bd450",
+  "#e7e7e7",
+  "#1f2933",
+];
 
 export const emptyDesign = (): Design => ({ name: "Untitled circuit", parts: [], wires: [] });

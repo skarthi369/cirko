@@ -1,32 +1,28 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
 import Editor from "@/components/circuit/Editor";
-import type { Design, PlacedPart } from "@/components/circuit/types";
+import type { Design } from "@/components/circuit/types";
 import type { SimResult } from "@/lib/simulate";
-import { validateLedCircuit, type ValidationResult } from "@/lib/labs/ledValidation";
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Line,
-  ComposedChart,
-} from "recharts";
+import { validateLedLabStep, type StepValidationInfo } from "@/lib/labs/ledValidation";
+import { LABS_CATALOG } from "@/lib/labs/catalog";
+import type { Observation } from "@/lib/labs/types";
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
-export type Observation = {
-  trial: number;
-  voltage: number; // V_D (V)
-  current: number; // I_D (mA)
-  batteryVoltage?: number | undefined;
-};
+import TopGuidanceBanner from "@/components/labs/TopGuidanceBanner";
+import StepChecklistPanel from "@/components/labs/StepChecklistPanel";
+import ObservationTable from "@/components/labs/ObservationTable";
+import LabGraph from "@/components/labs/LabGraph";
+import LabManualSection from "@/components/labs/LabManualSection";
+import PrePostTestCard from "@/components/labs/PrePostTestCard";
+import GuidedSolutionModal from "@/components/labs/GuidedSolutionModal";
+import CompletionCertificateModal from "@/components/labs/CompletionCertificateModal";
+
+const LED_LAB_META = LABS_CATALOG.find((l) => l.id === "characterization-led")!;
+const PROCEDURE_STEPS = LED_LAB_META.procedureStepDefs!;
 
 const INITIAL_LAB_DESIGN: Design = {
   name: "LED Characterization Setup",
@@ -36,78 +32,33 @@ const INITIAL_LAB_DESIGN: Design = {
     { id: "lab-led", type: "led", x: 540, y: 210, rotation: 0, props: { color: "red" } },
   ],
   wires: [
-    { id: "lab-w1", from: { partId: "lab-bat", pinId: "pos" }, to: { partId: "lab-res", pinId: "a" }, color: "#ff5d5d" },
-    { id: "lab-w2", from: { partId: "lab-res", pinId: "b" }, to: { partId: "lab-led", pinId: "anode" }, color: "#f5a524" },
-    { id: "lab-w3", from: { partId: "lab-led", pinId: "cathode" }, to: { partId: "lab-bat", pinId: "neg" }, color: "#1f2933" },
+    {
+      id: "lab-w1",
+      from: { partId: "lab-bat", pinId: "pos" },
+      to: { partId: "lab-res", pinId: "a" },
+      color: "#ff5d5d",
+    },
+    {
+      id: "lab-w2",
+      from: { partId: "lab-res", pinId: "b" },
+      to: { partId: "lab-led", pinId: "anode" },
+      color: "#f5a524",
+    },
+    {
+      id: "lab-w3",
+      from: { partId: "lab-led", pinId: "cathode" },
+      to: { partId: "lab-bat", pinId: "neg" },
+      color: "#1f2933",
+    },
   ],
 };
 
-const PRE_TEST_QUESTIONS = [
-  {
-    id: 1,
-    question: "What is the primary purpose of connecting a series resistor with an LED in a circuit?",
-    options: [
-      "To increase the total voltage delivered to the LED",
-      "To limit the forward current and prevent LED burnout",
-      "To convert DC voltage into AC voltage",
-      "To store energy when the circuit is switched off",
-    ],
-    answer: 1,
-  },
-  {
-    id: 2,
-    question: "What is the typical forward knee voltage (V_k) for a standard red semiconductor LED?",
-    options: ["0.2 V", "1.8 V – 2.0 V", "5.0 V", "12.0 V"],
-    answer: 1,
-  },
-  {
-    id: 3,
-    question: "Under which biasing condition does a Light Emitting Diode conduct current and emit photons?",
-    options: ["Reverse Bias", "Forward Bias", "Zero Bias", "Breakdown Bias"],
-    answer: 1,
-  },
-];
-
-const POST_TEST_QUESTIONS = [
-  {
-    id: 1,
-    question: "What happens to the LED current (I_D) when applied voltage is below the knee voltage (V < V_k)?",
-    options: [
-      "Current rises exponentially",
-      "Current remains virtually zero (negligible leakage current)",
-      "Current flows in reverse direction",
-      "Current reaches maximum power limit",
-    ],
-    answer: 1,
-  },
-  {
-    id: 2,
-    question: "When battery voltage is increased significantly past knee voltage, how do V_D and Resistor voltage behave?",
-    options: [
-      "V_D stays relatively constant near ~1.8V-2V while the resistor absorbs the extra voltage",
-      "V_D increases linearly to match battery voltage",
-      "Resistor voltage stays at zero",
-      "V_D drops to zero",
-    ],
-    answer: 0,
-  },
-  {
-    id: 3,
-    question: "The inverse slope (ΔV / ΔI) of the V-I curve above knee voltage represents:",
-    options: [
-      "Dynamic forward resistance (r_f) of the LED",
-      "Capacitance of the depletion layer",
-      "Inductance of the wire lead",
-      "Reverse breakdown resistance",
-    ],
-    answer: 0,
-  },
-];
-
 export default function LedLabContainer() {
-  const [activeTab, setActiveTab] = useState("experiment");
+  const [activeTab, setActiveTab] = useState("manual");
   const [design, setDesign] = useState<Design>(INITIAL_LAB_DESIGN);
   const [sim, setSim] = useState<SimResult | null>(null);
+
+  // Observations storage (isolated to lab)
   const [observations, setObservations] = useState<Observation[]>(() => {
     try {
       const raw = localStorage.getItem("cirkit.lab.led.observations.v1");
@@ -117,13 +68,25 @@ export default function LedLabContainer() {
     }
   });
 
-  const [preAnswers, setPreAnswers] = useState<Record<number, number>>({});
-  const [preSubmitted, setPreSubmitted] = useState(false);
-  const [postAnswers, setPostAnswers] = useState<Record<number, number>>({});
-  const [postSubmitted, setPostSubmitted] = useState(false);
+  // Test and manual progress
   const [theoryRead, setTheoryRead] = useState(false);
+  const [preScore, setPreScore] = useState<number | null>(null);
+  const [postScore, setPostScore] = useState<number | null>(null);
 
-  // Persistence for observations
+  // Guided step progression state
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [attemptsMap, setAttemptsMap] = useState<Record<number, number>>({});
+  const [guidedSolutionUnlockedMap, setGuidedSolutionUnlockedMap] = useState<
+    Record<number, boolean>
+  >({});
+  const [showMeActive, setShowMeActive] = useState(false);
+
+  // Modals state
+  const [activeGuidedModalStepIndex, setActiveGuidedModalStepIndex] = useState<number | null>(null);
+  const [certificateModalOpen, setCertificateModalOpen] = useState(false);
+  const [hintMessage, setHintMessage] = useState<string | null>(null);
+
+  // Persist observations
   useEffect(() => {
     try {
       localStorage.setItem("cirkit.lab.led.observations.v1", JSON.stringify(observations));
@@ -132,527 +95,459 @@ export default function LedLabContainer() {
     }
   }, [observations]);
 
-  // Validation
-  const validation: ValidationResult = useMemo(() => {
-    return validateLedCircuit(design, sim);
-  }, [design, sim]);
+  // Real-time circuit step validation
+  const validation: StepValidationInfo = useMemo(() => {
+    return validateLedLabStep(design, sim, observations.length);
+  }, [design, sim, observations.length]);
 
-  // Handle design change callback from Editor
-  const handleDesignChange = (newDesign: Design, newSim: SimResult | null) => {
+  // Handle editor updates
+  const handleDesignChange = useCallback((newDesign: Design, newSim: SimResult | null) => {
     setDesign(newDesign);
     setSim(newSim);
-  };
+  }, []);
 
-  // Record trial
-  const recordTrial = () => {
-    if (!validation.valid || validation.vd === undefined || validation.id === undefined) return;
-    const bat = validation.battery;
-    const batV = bat ? parseFloat(bat.props['voltage'] ?? "1.5") : undefined;
+  // Compute completed step indices based on actual circuit & simulation state
+  const completedStepIndices = useMemo(() => {
+    const list: number[] = [];
+    if (validation.partsPlaced) list.push(0); // Step 1: Parts placed
+    if (validation.topologyValid) list.push(1); // Step 2: Wires connected
+    if (validation.simulationRunning) list.push(2); // Step 3: Simulation running
+    if (observations.length >= 1) list.push(3); // Step 4: First reading logged
+    if (observations.length >= 3) list.push(4); // Step 5: Knee region logged
+    if (observations.length >= 4) list.push(5); // Step 6: Full curve dataset
+    if (postScore !== null && postScore >= 2) list.push(6); // Step 7: Post-test passed
+    return list;
+  }, [validation, observations.length, postScore]);
+
+  // Auto-advance active step as student achieves milestones
+  useEffect(() => {
+    if (
+      completedStepIndices.includes(currentStepIndex) &&
+      currentStepIndex < PROCEDURE_STEPS.length - 1
+    ) {
+      setCurrentStepIndex((prev) => prev + 1);
+    }
+  }, [completedStepIndices, currentStepIndex]);
+
+  // Record Measurement
+  const handleRecordMeasurement = () => {
+    if (
+      !validation.activeMeasurement ||
+      validation.vd === undefined ||
+      validation.id === undefined
+    ) {
+      // Record failed attempt
+      setAttemptsMap((prev) => {
+        const nextAttempts = (prev[currentStepIndex] ?? 0) + 1;
+        if (nextAttempts >= 3) {
+          setGuidedSolutionUnlockedMap((gu) => ({ ...gu, [currentStepIndex]: true }));
+        }
+        return { ...prev, [currentStepIndex]: nextAttempts };
+      });
+      return;
+    }
 
     const newObs: Observation = {
       trial: observations.length + 1,
+      timestamp: Date.now(),
       voltage: Number(validation.vd.toFixed(3)),
       current: Number(validation.id.toFixed(3)),
-      batteryVoltage: batV,
+      batteryVoltage: validation.vin,
     };
 
     setObservations((prev) => [...prev, newObs]);
   };
 
-  // Clear observations
-  const clearObservations = () => {
+  const handleDeleteObservation = (trial: number) => {
+    setObservations((prev) =>
+      prev.filter((o) => o.trial !== trial).map((o, idx) => ({ ...o, trial: idx + 1 })),
+    );
+  };
+
+  const handleClearObservations = () => {
     setObservations([]);
   };
 
-  // Scores
-  const preScore = useMemo(() => {
-    if (!preSubmitted) return 0;
-    return PRE_TEST_QUESTIONS.filter((q) => preAnswers[q.id] === q.answer).length;
-  }, [preAnswers, preSubmitted]);
+  // Attempt failure trigger
+  const registerStepFailure = (stepIdx: number) => {
+    setAttemptsMap((prev) => {
+      const nextVal = (prev[stepIdx] ?? 0) + 1;
+      if (nextVal >= 3) {
+        setGuidedSolutionUnlockedMap((gu) => ({ ...gu, [stepIdx]: true }));
+      }
+      return { ...prev, [stepIdx]: nextVal };
+    });
+  };
 
-  const postScore = useMemo(() => {
-    if (!postSubmitted) return 0;
-    return POST_TEST_QUESTIONS.filter((q) => postAnswers[q.id] === q.answer).length;
-  }, [postAnswers, postSubmitted]);
+  // Hint display logic
+  const handleShowHint = (stepIdx: number = currentStepIndex) => {
+    const stepDef = PROCEDURE_STEPS[stepIdx];
+    if (!stepDef) return;
 
-  // Calculate Progress %
-  const progressPercent = useMemo(() => {
+    const attempts = attemptsMap[stepIdx] ?? 0;
+    const hintIdx = Math.min(attempts, stepDef.hints.length - 1);
+    const text = stepDef.hints[hintIdx]!;
+    setHintMessage(`Attempt ${attempts + 1} Hint: ${text}`);
+
+    // Increment attempt counter
+    registerStepFailure(stepIdx);
+  };
+
+  // Calculate overall XP score and progress %
+  const { progressPercent, totalXp } = useMemo(() => {
     let p = 0;
-    if (theoryRead) p += 15;
-    if (preSubmitted && preScore >= 2) p += 20;
-    if (validation.valid) p += 20;
-    if (observations.length >= 3) p += 20;
-    if (postSubmitted && postScore >= 2) p += 25;
-    return Math.min(100, p);
-  }, [theoryRead, preSubmitted, preScore, validation.valid, observations.length, postSubmitted, postScore]);
+    let xp = 0;
 
-  // Dynamic analysis calculations
-  const analysis = useMemo(() => {
-    if (observations.length < 2) return null;
-    const sorted = [...observations].sort((a, b) => a.voltage - b.voltage);
-    const minV = sorted[0]!.voltage;
-    const maxV = sorted[sorted.length - 1]!.voltage;
-    const maxI = sorted[sorted.length - 1]!.current;
-    
-    // Estimate knee voltage V_k (first point where current exceeds 0.5 mA)
-    const kneeObs = sorted.find((o) => o.current > 0.5);
-    const vk = kneeObs ? kneeObs.voltage : 1.8;
-
-    // Estimate forward resistance Rf = delta V / delta I above knee
-    const highPts = sorted.filter((o) => o.current > 1.0);
-    let rf = 0;
-    if (highPts.length >= 2) {
-      const p1 = highPts[0]!;
-      const p2 = highPts[highPts.length - 1]!;
-      const dV = p2.voltage - p1.voltage;
-      const dI = (p2.current - p1.current) / 1000; // convert mA to A
-      if (dI > 0) rf = dV / dI;
+    if (theoryRead) {
+      p += 10;
+      xp += 10;
+    }
+    if (preScore !== null && preScore >= 2) {
+      p += 15;
+      xp += 20;
+    }
+    if (validation.partsPlaced) {
+      p += 10;
+      xp += 10;
+    }
+    if (validation.topologyValid) {
+      p += 15;
+      xp += 20;
+    }
+    if (validation.simulationRunning) {
+      p += 10;
+      xp += 10;
+    }
+    if (observations.length >= 4) {
+      p += 20;
+      xp += 20;
+    }
+    if (postScore !== null && postScore >= 2) {
+      p += 20;
+      xp += 10;
     }
 
-    return { minV, maxV, maxI, vk, rf };
-  }, [observations]);
+    return {
+      progressPercent: Math.min(100, p),
+      totalXp: Math.min(100, xp),
+    };
+  }, [theoryRead, preScore, validation, observations.length, postScore]);
+
+  const isCompleted = progressPercent === 100;
+  const currentStepDef = PROCEDURE_STEPS[currentStepIndex] ?? PROCEDURE_STEPS[0]!;
 
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground">
-      {/* Top Navigation Bar */}
+      {/* Top Application Header */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-sidebar px-4">
         <div className="flex items-center gap-3">
           <Link
-            to={"/labs" as any}
-            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+            to="/labs"
+            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground font-mono"
           >
-            ← Back to Labs
+            ← All Virtual Labs
           </Link>
           <span className="text-border">|</span>
           <div>
-            <h1 className="font-mono text-sm font-bold tracking-tight">
-              Optical Communication: Characterization of LED
-            </h1>
-            <p className="text-[11px] text-muted-foreground">Experiment 1 of 3 · V-I Characteristics Study</p>
+            <h1 className="font-mono text-sm font-bold tracking-tight">{LED_LAB_META.title}</h1>
+            <p className="text-[11px] text-muted-foreground">
+              {LED_LAB_META.categoryTitle} · IIT Roorkee Reference Methodology
+            </p>
           </div>
         </div>
 
-        {/* Progress & Badge */}
+        {/* Gamified Progress & XP Badge */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-medium text-muted-foreground">Progress:</span>
-            <div className="w-32">
+            <div className="w-28 sm:w-36">
               <Progress value={progressPercent} className="h-2" />
             </div>
             <span className="font-mono text-xs font-bold text-primary">{progressPercent}%</span>
           </div>
 
-          {progressPercent === 100 ? (
-            <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">✓ Completed</Badge>
+          <Badge variant="outline" className="font-mono text-xs text-primary border-primary/40">
+            ⭐ {totalXp} / 100 XP
+          </Badge>
+
+          {isCompleted ? (
+            <Button
+              size="sm"
+              onClick={() => setCertificateModalOpen(true)}
+              className="font-mono text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs"
+            >
+              🎓 View Certificate
+            </Button>
           ) : (
-            <Badge variant="outline" className="font-mono text-xs">
+            <Badge variant="secondary" className="font-mono text-xs">
               In Progress
             </Badge>
           )}
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div className="flex min-h-0 flex-1 flex-col">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col">
-          <div className="border-b border-border bg-card px-4">
-            <TabsList className="h-10 bg-transparent p-0 gap-2">
-              <TabsTrigger value="aim" onClick={() => setTheoryRead(true)}>
-                📖 Aim & Theory
-              </TabsTrigger>
-              <TabsTrigger value="pretest">❓ Pre-Test</TabsTrigger>
-              <TabsTrigger value="experiment">🔬 Virtual Experiment</TabsTrigger>
-              <TabsTrigger value="graph">📈 V-I Graph ({observations.length})</TabsTrigger>
-              <TabsTrigger value="posttest">📝 Post-Test</TabsTrigger>
-            </TabsList>
-          </div>
-
-          {/* TAB 1: AIM & THEORY */}
-          <TabsContent value="aim" className="min-h-0 flex-1 overflow-y-auto p-6">
-            <div className="mx-auto max-w-4xl space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl font-bold">Aim of the Experiment</CardTitle>
-                  <CardDescription>
-                    To study and plot the Voltage-Current (V-I) forward bias characteristics of a Light Emitting Diode (LED) and determine its forward knee voltage (V_k) and dynamic resistance (R_f).
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Theory & Working Principle</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 text-sm leading-relaxed text-muted-foreground">
-                  <p>
-                    A Light Emitting Diode (LED) is a heavily doped P-N semiconductor junction diode operating under <strong>forward bias</strong>. When a sufficient forward voltage (V_D &gt; V_k) is applied, free electrons from the N-region cross the junction and recombine with holes in the P-region, emitting light photons.
-                  </p>
-                  <div className="rounded-md border border-border bg-muted/30 p-4 font-mono text-xs text-foreground">
-                    <p className="font-bold">Key Electronic Equations:</p>
-                    <p className="mt-1">
-                      1. Diode Current: I_D = I_S * (e^(q*V_D / n*k*T) - 1)
-                    </p>
-                    <p className="mt-1">
-                      2. Series Resistor Constraint: V_bat = V_D + I_D * R_series
-                    </p>
-                  </div>
-                  <p>
-                    <strong>Knee Voltage (V_k):</strong> Below the knee voltage (V_D &lt; V_k), negligible forward current flows. Once V_D reaches V_k (~1.8 V for Red LED), forward current rises exponentially.
-                  </p>
-                  <p>
-                    <strong>Role of Series Resistor (R_series):</strong> Because an LED has very low dynamic resistance once turned on, connecting an un-limited voltage source directly across it will cause destructive over-current (I_D &gt; 40 mA). A series resistor (220 Ω) absorbs the surplus voltage and limits current to safe operating levels.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end">
-                <Button onClick={() => setActiveTab("pretest")}>Proceed to Pre-Test →</Button>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* TAB 2: PRE-TEST */}
-          <TabsContent value="pretest" className="min-h-0 flex-1 overflow-y-auto p-6">
-            <div className="mx-auto max-w-3xl space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl font-bold">Pre-Experiment Knowledge Assessment</CardTitle>
-                  <CardDescription>
-                    Answer the following questions to verify your theoretical understanding before starting the experiment.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {PRE_TEST_QUESTIONS.map((q, idx) => (
-                    <div key={q.id} className="rounded-lg border border-border p-4 space-y-3 bg-card">
-                      <p className="font-medium text-sm">
-                        Q{idx + 1}. {q.question}
-                      </p>
-                      <div className="space-y-2">
-                        {q.options.map((opt, optIdx) => (
-                          <label
-                            key={optIdx}
-                            className={`flex items-center gap-3 rounded border p-2.5 text-xs cursor-pointer transition-colors ${
-                              preAnswers[q.id] === optIdx
-                                ? "border-primary bg-primary/10 font-medium"
-                                : "border-border hover:bg-muted/50"
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name={`pre-${q.id}`}
-                              checked={preAnswers[q.id] === optIdx}
-                              onChange={() => setPreAnswers((prev) => ({ ...prev, [q.id]: optIdx }))}
-                              disabled={preSubmitted}
-                            />
-                            {opt}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {preSubmitted ? (
-                    <div className="flex items-center justify-between rounded bg-muted p-4">
-                      <div>
-                        <p className="font-bold text-sm">
-                          Your Score: {preScore} / {PRE_TEST_QUESTIONS.length}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {preScore >= 2
-                            ? "✓ Excellent! Pre-test passed. You can now proceed to the experiment."
-                            : "Review the theory and try again."}
-                        </p>
-                      </div>
-                      <Button onClick={() => setActiveTab("experiment")}>Go to Virtual Experiment →</Button>
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={() => setPreSubmitted(true)}
-                      disabled={Object.keys(preAnswers).length < PRE_TEST_QUESTIONS.length}
-                      className="w-full"
-                    >
-                      Submit Pre-Test Answers
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* TAB 3: VIRTUAL EXPERIMENT */}
-          <TabsContent value="experiment" className="min-h-0 flex-1">
-            <div className="flex h-full w-full flex-col">
-              {/* Lab Guidance & Controls Header Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-card px-4 py-2 text-xs">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono font-bold text-primary">Status:</span>
-                  <span
-                    className={`font-mono text-xs font-semibold ${
-                      validation.valid ? "text-emerald-500" : "text-amber-500"
-                    }`}
-                  >
-                    {validation.message}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {validation.valid && validation.vd !== undefined && validation.id !== undefined && (
-                    <div className="flex items-center gap-3 font-mono text-xs rounded border border-primary/40 bg-primary/10 px-3 py-1 text-primary">
-                      <span>V_D = {validation.vd.toFixed(2)} V</span>
-                      <span>I_D = {validation.id.toFixed(2)} mA</span>
-                    </div>
-                  )}
-
-                  <Button
-                    size="sm"
-                    onClick={recordTrial}
-                    disabled={!validation.valid || validation.vd === undefined}
-                    className="font-mono text-xs"
-                  >
-                    📸 Record Measurement
-                  </Button>
-                </div>
-              </div>
-
-              {/* Main Content Layout: Editor (Left) + Observations Panel (Right) */}
-              <div className="flex min-h-0 flex-1">
-                {/* Simulator Canvas Embed */}
-                <div className="min-h-0 flex-1">
-                  <Editor
-                    storageKey="cirkit.lab.led.v1"
-                    initialDesign={INITIAL_LAB_DESIGN}
-                    onDesignChange={handleDesignChange}
-                  />
-                </div>
-
-                {/* Live Observations Panel */}
-                <aside className="w-80 shrink-0 overflow-y-auto border-l border-border bg-sidebar p-4 space-y-4">
-                  <div>
-                    <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      Student Instructions
-                    </h3>
-                    <ol className="mt-2 space-y-1.5 text-xs text-muted-foreground list-decimal list-inside leading-relaxed">
-                      <li>Ensure Battery, 220Ω Resistor, and Red LED are placed on canvas.</li>
-                      <li>Wire Battery (+) → Resistor → LED Anode (A).</li>
-                      <li>Wire LED Cathode (K) → Battery (-).</li>
-                      <li>Click <strong>Start simulation</strong> in toolbar.</li>
-                      <li>Select Battery and adjust Voltage (e.g. 0.5V, 1.0V, 1.5V, 2.0V, 3.0V, 5.0V).</li>
-                      <li>Click <strong>Record Measurement</strong> to save trials.</li>
-                    </ol>
-                  </div>
-
-                  <hr className="border-border" />
-
-                  {/* Observations Table */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Observations ({observations.length})
-                      </h3>
-                      {observations.length > 0 && (
-                        <button
-                          onClick={clearObservations}
-                          className="font-mono text-[10px] text-destructive hover:underline"
-                        >
-                          Clear All
-                        </button>
-                      )}
-                    </div>
-
-                    {observations.length === 0 ? (
-                      <div className="rounded border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                        No trials recorded yet. Adjust voltage and click Record Measurement above.
-                      </div>
-                    ) : (
-                      <div className="rounded border border-border overflow-hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="hover:bg-transparent">
-                              <TableHead className="h-8 text-[11px] font-mono">#</TableHead>
-                              <TableHead className="h-8 text-[11px] font-mono">V_D (V)</TableHead>
-                              <TableHead className="h-8 text-[11px] font-mono">I_D (mA)</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {observations.map((obs) => (
-                              <TableRow key={obs.trial} className="h-7 text-xs font-mono">
-                                <TableCell className="py-1">{obs.trial}</TableCell>
-                                <TableCell className="py-1 font-semibold text-primary">
-                                  {obs.voltage.toFixed(2)}
-                                </TableCell>
-                                <TableCell className="py-1">{obs.current.toFixed(2)}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </div>
-
-                  {observations.length >= 3 && (
-                    <Button onClick={() => setActiveTab("graph")} className="w-full text-xs">
-                      View V-I Graph →
-                    </Button>
-                  )}
-                </aside>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* TAB 4: V-I GRAPH */}
-          <TabsContent value="graph" className="min-h-0 flex-1 overflow-y-auto p-6">
-            <div className="mx-auto max-w-4xl space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl font-bold">Forward Bias V-I Characteristic Curve</CardTitle>
-                  <CardDescription>
-                    Plot generated directly from your recorded experimental trial observations.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {observations.length === 0 ? (
-                    <Alert variant="destructive">
-                      <AlertTitle>No Data Recorded</AlertTitle>
-                      <AlertDescription>
-                        Please complete trials in the Virtual Experiment tab first to generate the plot.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (
-                    <>
-                      <div className="h-80 w-full rounded border border-border bg-card p-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <ComposedChart
-                            data={[...observations].sort((a, b) => a.voltage - b.voltage)}
-                            margin={{ top: 10, right: 30, left: 10, bottom: 20 }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                            <XAxis
-                              dataKey="voltage"
-                              type="number"
-                              unit=" V"
-                              domain={[0, "auto"]}
-                              label={{ value: "LED Voltage V_D (V)", position: "bottom", offset: 0 }}
-                            />
-                            <YAxis
-                              dataKey="current"
-                              type="number"
-                              unit=" mA"
-                              domain={[0, "auto"]}
-                              label={{ value: "LED Current I_D (mA)", angle: -90, position: "left" }}
-                            />
-                            <Tooltip
-                              formatter={(value: any, name: any) => [
-                                `${Number(value).toFixed(2)} ${name === "current" ? "mA" : "V"}`,
-                                name === "current" ? "LED Current I_D" : "LED Voltage V_D",
-                              ]}
-                              labelFormatter={(lbl) => `LED Voltage: ${lbl} V`}
-                            />
-                            <Line
-                              type="monotone"
-                              dataKey="current"
-                              stroke="var(--primary)"
-                              strokeWidth={2.5}
-                              dot={{ r: 5, fill: "var(--primary)" }}
-                              activeDot={{ r: 8 }}
-                            />
-                          </ComposedChart>
-                        </ResponsiveContainer>
-                      </div>
-
-                      {/* Experimental Analysis */}
-                      {analysis && (
-                        <div className="rounded border border-border bg-muted/20 p-4 space-y-2 font-mono text-xs">
-                          <p className="font-bold text-sm text-foreground">Experimental Data Analysis:</p>
-                          <div className="grid grid-cols-2 gap-4 text-muted-foreground">
-                            <p>• Observed Knee Voltage (V_k): <span className="text-foreground font-semibold">{analysis.vk.toFixed(2)} V</span></p>
-                            <p>• Max Recorded Current (I_max): <span className="text-foreground font-semibold">{analysis.maxI.toFixed(2)} mA</span></p>
-                            <p>• Dynamic Forward Resistance (R_f): <span className="text-foreground font-semibold">{analysis.rf > 0 ? `${analysis.rf.toFixed(1)} Ω` : "N/A"}</span></p>
-                            <p>• Voltage Sweep Range: <span className="text-foreground font-semibold">{analysis.minV.toFixed(2)} V – {analysis.maxV.toFixed(2)} V</span></p>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <div className="flex justify-end">
-                    <Button onClick={() => setActiveTab("posttest")}>Proceed to Post-Test →</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* TAB 5: POST-TEST */}
-          <TabsContent value="posttest" className="min-h-0 flex-1 overflow-y-auto p-6">
-            <div className="mx-auto max-w-3xl space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl font-bold">Post-Experiment Assessment</CardTitle>
-                  <CardDescription>
-                    Test your understanding of the experimental observations and V-I characteristic curve.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {POST_TEST_QUESTIONS.map((q, idx) => (
-                    <div key={q.id} className="rounded-lg border border-border p-4 space-y-3 bg-card">
-                      <p className="font-medium text-sm">
-                        Q{idx + 1}. {q.question}
-                      </p>
-                      <div className="space-y-2">
-                        {q.options.map((opt, optIdx) => (
-                          <label
-                            key={optIdx}
-                            className={`flex items-center gap-3 rounded border p-2.5 text-xs cursor-pointer transition-colors ${
-                              postAnswers[q.id] === optIdx
-                                ? "border-primary bg-primary/10 font-medium"
-                                : "border-border hover:bg-muted/50"
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name={`post-${q.id}`}
-                              checked={postAnswers[q.id] === optIdx}
-                              onChange={() => setPostAnswers((prev) => ({ ...prev, [q.id]: optIdx }))}
-                              disabled={postSubmitted}
-                            />
-                            {opt}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {postSubmitted ? (
-                    <div className="flex items-center justify-between rounded bg-emerald-500/10 border border-emerald-500/30 p-4">
-                      <div>
-                        <p className="font-bold text-sm text-emerald-500">
-                          Final Score: {postScore} / {POST_TEST_QUESTIONS.length}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {postScore >= 2
-                            ? "🎉 Congratulations! You have successfully completed the Characterization of LED Virtual Lab."
-                            : "Review your experiment data and try again."}
-                        </p>
-                      </div>
-                      <Link to={"/labs" as any}>
-                        <Button variant="default">Back to All Virtual Labs</Button>
-                      </Link>
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={() => setPostSubmitted(true)}
-                      disabled={Object.keys(postAnswers).length < POST_TEST_QUESTIONS.length}
-                      className="w-full"
-                    >
-                      Submit Post-Test Answers
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+      {/* Main Tabs Navigation */}
+      <div className="border-b border-border bg-card px-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="h-10 bg-transparent p-0 gap-1.5">
+            <TabsTrigger
+              value="manual"
+              onClick={() => setTheoryRead(true)}
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary"
+            >
+              📖 Manual & Theory
+            </TabsTrigger>
+            <TabsTrigger
+              value="pretest"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary"
+            >
+              ❓ Pre-Test {preScore !== null && `(${preScore}/3)`}
+            </TabsTrigger>
+            <TabsTrigger
+              value="experiment"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary"
+            >
+              🔬 Virtual Experiment ({completedStepIndices.length}/{PROCEDURE_STEPS.length})
+            </TabsTrigger>
+            <TabsTrigger
+              value="graph"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary"
+            >
+              📈 V-I Graph ({observations.length})
+            </TabsTrigger>
+            <TabsTrigger
+              value="posttest"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary"
+            >
+              📝 Post-Test {postScore !== null && `(${postScore}/3)`}
+            </TabsTrigger>
+          </TabsList>
         </Tabs>
       </div>
+
+      {/* Active Tab Workspace */}
+      <div className="min-h-0 flex-1 flex flex-col">
+        {/* TAB 1: MANUAL & THEORY */}
+        {activeTab === "manual" && (
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+            <LabManualSection
+              manual={LED_LAB_META.manual}
+              onProceedToPretest={() => setActiveTab("pretest")}
+            />
+          </div>
+        )}
+
+        {/* TAB 2: PRE-TEST */}
+        {activeTab === "pretest" && (
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+            <div className="mx-auto max-w-3xl space-y-6">
+              <PrePostTestCard
+                type="pretest"
+                title="Pre-Experiment Knowledge Check"
+                description="Verify theoretical diode concepts before activating laboratory hardware."
+                questions={LED_LAB_META.manual.preTestQuestions}
+                onComplete={(score) => {
+                  setPreScore(score);
+                  if (score >= 2) {
+                    setActiveTab("experiment");
+                  }
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: VIRTUAL EXPERIMENT */}
+        {activeTab === "experiment" && (
+          <div className="flex h-full w-full flex-col min-h-0">
+            {/* Dynamic Top Guidance Banner */}
+            <TopGuidanceBanner
+              currentStep={currentStepDef}
+              totalSteps={PROCEDURE_STEPS.length}
+              validation={validation}
+              attempts={attemptsMap[currentStepIndex] ?? 0}
+              onRecordMeasurement={handleRecordMeasurement}
+              onShowHint={() => handleShowHint(currentStepIndex)}
+              onShowGuidedSolution={() => setActiveGuidedModalStepIndex(currentStepIndex)}
+              onToggleShowMe={() => setShowMeActive((prev) => !prev)}
+              showMeActive={showMeActive}
+              guidedSolutionUnlocked={guidedSolutionUnlockedMap[currentStepIndex] ?? false}
+              canRecord={validation.activeMeasurement}
+            />
+
+            {/* Hint Notice Banner */}
+            {hintMessage && (
+              <div className="flex items-center justify-between border-b border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-xs text-amber-500">
+                <span className="font-mono">{hintMessage}</span>
+                <button
+                  onClick={() => setHintMessage(null)}
+                  className="text-xs font-bold hover:underline"
+                >
+                  Dismiss ✕
+                </button>
+              </div>
+            )}
+
+            {/* Simulator Canvas + Sidebar Split */}
+            <div className="flex min-h-0 flex-1">
+              {/* CircuitLab Embedded Canvas */}
+              <div className="min-h-0 flex-1 relative">
+                <Editor
+                  storageKey="cirkit.lab.led.v1"
+                  initialDesign={INITIAL_LAB_DESIGN}
+                  onDesignChange={handleDesignChange}
+                />
+
+                {/* Show Me Highlights Overlay Indicator */}
+                {showMeActive && (
+                  <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-8 bg-primary/5">
+                    <div className="rounded-lg border-2 border-primary bg-card/95 p-4 text-xs font-mono shadow-xl text-center space-y-2">
+                      <p className="font-bold text-primary uppercase tracking-wider">
+                        🔍 Show Me Guide Active
+                      </p>
+                      <p className="text-foreground">
+                        Step {currentStepDef.stepNumber}: {currentStepDef.instruction}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Click 'Hide Highlights' in the top banner when you are ready to make the
+                        connections.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Guided Sidebar: Step Checklist + Observation Table */}
+              <aside className="w-84 shrink-0 overflow-y-auto border-l border-border bg-sidebar p-4 space-y-6">
+                {/* Step-by-Step Checklist */}
+                <StepChecklistPanel
+                  steps={PROCEDURE_STEPS}
+                  currentStepIndex={currentStepIndex}
+                  completedStepIndices={completedStepIndices}
+                  onSelectStep={(idx) => setCurrentStepIndex(idx)}
+                  attemptsMap={attemptsMap}
+                  onShowHint={(idx) => handleShowHint(idx)}
+                  onShowGuidedSolution={(idx) => setActiveGuidedModalStepIndex(idx)}
+                  guidedSolutionUnlockedMap={guidedSolutionUnlockedMap}
+                />
+
+                <hr className="border-border" />
+
+                {/* Live Observation Table */}
+                <ObservationTable
+                  observations={observations}
+                  onDeleteObservation={handleDeleteObservation}
+                  onClearAll={handleClearObservations}
+                  minRequired={4}
+                />
+
+                {/* Navigate to Graph Trigger */}
+                {observations.length >= 2 && (
+                  <Button
+                    onClick={() => setActiveTab("graph")}
+                    className="w-full font-mono text-xs gap-1.5"
+                  >
+                    View V-I Characteristic Graph ({observations.length} readings) →
+                  </Button>
+                )}
+              </aside>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: V-I GRAPH & ANALYSIS */}
+        {activeTab === "graph" && (
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+            <div className="mx-auto max-w-4xl space-y-6">
+              <LabGraph
+                observations={observations}
+                title="LED Forward Bias V-I Characteristic Plot"
+                description="Dynamic experimental plot generated directly from your recorded trial observations."
+              />
+
+              <div className="flex items-center justify-between pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setActiveTab("experiment")}
+                  className="font-mono text-xs"
+                >
+                  ← Return to Simulator
+                </Button>
+
+                <Button
+                  onClick={() => setActiveTab("posttest")}
+                  className="font-mono text-xs gap-1.5"
+                >
+                  Proceed to Final Post-Test Assessment →
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: POST-TEST & COMPLETION */}
+        {activeTab === "posttest" && (
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+            <div className="mx-auto max-w-3xl space-y-6">
+              <PrePostTestCard
+                type="posttest"
+                title="Post-Experiment Knowledge Assessment"
+                description="Evaluate your physical understanding of the LED knee voltage, forward resistance, and series current limiting."
+                questions={LED_LAB_META.manual.postTestQuestions}
+                onComplete={(score) => {
+                  setPostScore(score);
+                  if (score >= 2) {
+                    setCertificateModalOpen(true);
+                  }
+                }}
+              />
+
+              {isCompleted && (
+                <div className="rounded-xl border-2 border-emerald-500/50 bg-emerald-500/10 p-6 text-center space-y-3">
+                  <span className="text-3xl">🎉</span>
+                  <h3 className="font-mono text-lg font-bold text-foreground">
+                    Virtual Laboratory Successfully Completed!
+                  </h3>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    You have verified the non-linear forward bias characteristics of an LED,
+                    recorded experimental observations, plotted the V-I curve, and passed all
+                    assessments.
+                  </p>
+                  <Button
+                    onClick={() => setCertificateModalOpen(true)}
+                    className="font-mono text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-xs"
+                  >
+                    🎓 View & Print Completion Certificate
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Guided Solution Modal */}
+      <GuidedSolutionModal
+        open={activeGuidedModalStepIndex !== null}
+        onOpenChange={(open) => !open && setActiveGuidedModalStepIndex(null)}
+        step={
+          activeGuidedModalStepIndex !== null
+            ? (PROCEDURE_STEPS[activeGuidedModalStepIndex] ?? null)
+            : null
+        }
+        onClose={() => setActiveGuidedModalStepIndex(null)}
+      />
+
+      {/* Completion Certificate Modal */}
+      <CompletionCertificateModal
+        open={certificateModalOpen}
+        onOpenChange={setCertificateModalOpen}
+        experimentTitle={LED_LAB_META.title}
+        categoryTitle={LED_LAB_META.categoryTitle}
+        score={totalXp}
+        trialsRecorded={observations.length}
+        onClose={() => setCertificateModalOpen(false)}
+      />
     </div>
   );
 }

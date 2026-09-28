@@ -1,109 +1,48 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { LABS_CATALOG, CATEGORY_INFO } from "@/lib/labs/catalog";
+import type { LabCategoryId } from "@/lib/labs/types";
 
 export const Route = createFileRoute("/labs/")({
   head: () => ({
     meta: [
-      { title: "Virtual Labs — CirkitLab" },
-      { name: "description", content: "Interactive electrical engineering virtual experiments." },
+      { title: "Virtual Labs Platform — CirkitLab" },
+      {
+        name: "description",
+        content:
+          "University-grade virtual laboratory experiments inspired by IIT Roorkee methodology: Optical Communication, Digital Electronics, and Communication Systems.",
+      },
     ],
   }),
   component: LabsIndexPage,
 });
 
-const LAB_CATEGORIES = [
-  {
-    id: "optical",
-    title: "Optical Communication Labs",
-    description: "Explore optoelectronic components, semiconductor lasers, photodetectors, and fiber optics.",
-    labs: [
-      {
-        id: "characterization-led",
-        title: "1. Characterization of LED",
-        description: "Study voltage-current (V-I) forward bias characteristics, knee voltage, and dynamic resistance.",
-        path: "/labs/optical-communication/characterization-led",
-        status: "available",
-      },
-      {
-        id: "characterization-laser",
-        title: "2. Characterization of LASER Diode",
-        description: "Analyze threshold current, L-I characteristics, and optical output power of a semiconductor laser.",
-        path: "#",
-        status: "coming_soon",
-      },
-      {
-        id: "intensity-modulation",
-        title: "3. Intensity Modulation of LASER Output",
-        description: "Investigate analog/digital signal transmission over fiber optic links.",
-        path: "#",
-        status: "coming_soon",
-      },
-    ],
-  },
-  {
-    id: "digital",
-    title: "Digital Electronics Labs",
-    description: "Build logic circuits, binary adders, latches, and sequential flip-flops.",
-    labs: [
-      {
-        id: "logic-gates",
-        title: "1. Logic Gates Verification",
-        description: "Construct truth tables for AND, OR, NOT, NAND, NOR, and XOR gates.",
-        path: "#",
-        status: "coming_soon",
-      },
-      {
-        id: "adders",
-        title: "2. Half & Full Adder",
-        description: "Implement binary arithmetic circuits with Sum and Carry outputs.",
-        path: "#",
-        status: "coming_soon",
-      },
-      {
-        id: "flip-flops",
-        title: "3. Flip-Flop Circuits",
-        description: "Analyze SR, JK, D, and T flip-flop state transitions.",
-        path: "#",
-        status: "coming_soon",
-      },
-    ],
-  },
-  {
-    id: "comm",
-    title: "Communication Systems Labs",
-    description: "Experiment with analog amplitude, frequency, and pulse modulation schemes.",
-    labs: [
-      {
-        id: "am-modulation",
-        title: "1. AM Modulation & Demodulation",
-        description: "Generate and envelope detect amplitude modulated signals.",
-        path: "#",
-        status: "coming_soon",
-      },
-      {
-        id: "fm-modulation",
-        title: "2. FM Modulation",
-        description: "Study frequency deviation and carrier modulation index.",
-        path: "#",
-        status: "coming_soon",
-      },
-      {
-        id: "pam-sampling",
-        title: "3. Pulse Amplitude Modulation (PAM)",
-        description: "Demonstrate Nyquist sampling and signal reconstruction.",
-        path: "#",
-        status: "coming_soon",
-      },
-    ],
-  },
-];
+export default function LabsIndexPage() {
+  const [selectedCategory, setSelectedCategory] = useState<LabCategoryId | "all">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
-function LabsIndexPage() {
+  const categories: LabCategoryId[] = [
+    "optical-communication",
+    "digital-electronics",
+    "communication-systems",
+  ];
+
+  const filteredLabs = LABS_CATALOG.filter((lab) => {
+    const matchesCat = selectedCategory === "all" || lab.category === selectedCategory;
+    const matchesQuery =
+      lab.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lab.shortObjective.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lab.categoryTitle.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCat && matchesQuery;
+  });
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
-      {/* Header */}
+      {/* Top Header */}
       <header className="flex h-14 items-center justify-between border-b border-border bg-sidebar px-6">
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center gap-2">
@@ -113,7 +52,7 @@ function LabsIndexPage() {
             <span className="font-mono text-sm font-bold">CirkitLab</span>
           </Link>
           <span className="text-border">|</span>
-          <h1 className="font-mono text-sm font-semibold">Virtual Engineering Labs</h1>
+          <h1 className="font-mono text-sm font-semibold">Virtual Engineering Labs Platform</h1>
         </div>
 
         <Link to="/">
@@ -123,58 +62,159 @@ function LabsIndexPage() {
         </Link>
       </header>
 
-      {/* Main Container */}
-      <main className="mx-auto w-full max-w-6xl flex-1 p-8 space-y-8">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Virtual Engineering Laboratories</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Select an interactive experiment to begin guided simulation, data collection, and physical analysis.
+      {/* Hero Banner */}
+      <div className="border-b border-border bg-card/60 px-6 py-8">
+        <div className="mx-auto max-w-6xl space-y-4">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="font-mono text-xs text-primary border-primary/40">
+              IIT Roorkee Curriculum Model
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              3 Disciplines · 9 Laboratory Experiments
+            </span>
+          </div>
+
+          <h2 className="text-3xl font-bold tracking-tight text-foreground font-mono">
+            Interactive Virtual Laboratories
+          </h2>
+          <p className="max-w-3xl text-sm text-muted-foreground leading-relaxed">
+            Perform rigorous, university-level engineering experiments inside your browser. Every
+            lab integrates an authoritative manual, guided procedure state machine, 3-attempt hint
+            system, real physical circuit simulation, observation tables, dynamic Recharts plotting,
+            and verifiable completion certificates.
           </p>
-        </div>
 
-        <div className="space-y-8">
-          {LAB_CATEGORIES.map((cat) => (
-            <div key={cat.id} className="space-y-4">
-              <div className="border-b border-border pb-2">
-                <h3 className="text-lg font-bold font-mono text-primary">{cat.title}</h3>
-                <p className="text-xs text-muted-foreground">{cat.description}</p>
-              </div>
+          {/* Filter and Search Controls */}
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                size="sm"
+                variant={selectedCategory === "all" ? "default" : "outline"}
+                onClick={() => setSelectedCategory("all")}
+                className="font-mono text-xs h-8"
+              >
+                All Disciplines ({LABS_CATALOG.length})
+              </Button>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {cat.labs.map((lab) => (
-                  <Card key={lab.id} className="flex flex-col justify-between transition-colors hover:border-primary/50">
-                    <CardHeader className="p-4 pb-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="text-sm font-semibold">{lab.title}</CardTitle>
-                        {lab.status === "available" ? (
-                          <Badge className="bg-emerald-600 text-[10px]">Available</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                            Coming Soon
-                          </Badge>
-                        )}
-                      </div>
-                      <CardDescription className="mt-1 text-xs">{lab.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-2">
-                      {lab.status === "available" ? (
-                        <Link to={lab.path}>
-                          <Button size="sm" className="w-full font-mono text-xs">
-                            Start Lab →
-                          </Button>
-                        </Link>
-                      ) : (
-                        <Button size="sm" variant="secondary" disabled className="w-full font-mono text-xs">
-                          In Development
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              {categories.map((catKey) => {
+                const info = CATEGORY_INFO[catKey];
+                const count = LABS_CATALOG.filter((l) => l.category === catKey).length;
+                return (
+                  <Button
+                    key={catKey}
+                    size="sm"
+                    variant={selectedCategory === catKey ? "default" : "outline"}
+                    onClick={() => setSelectedCategory(catKey)}
+                    className="font-mono text-xs h-8 gap-1.5"
+                  >
+                    <span>{info.icon}</span>
+                    <span>{info.title}</span>
+                    <span className="text-[10px] opacity-70">({count})</span>
+                  </Button>
+                );
+              })}
             </div>
-          ))}
+
+            {/* Search Input */}
+            <div className="w-full sm:w-64">
+              <Input
+                placeholder="Search experiments…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 font-mono text-xs bg-sidebar"
+              />
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Main Catalog Listing */}
+      <main className="mx-auto w-full max-w-6xl flex-1 p-6 sm:p-8 space-y-10">
+        {categories.map((catKey) => {
+          const info = CATEGORY_INFO[catKey];
+          const labsInCat = filteredLabs.filter((l) => l.category === catKey);
+          if (labsInCat.length === 0) return null;
+
+          return (
+            <section key={catKey} className="space-y-4">
+              {/* Category Header */}
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl">{info.icon}</span>
+                  <div>
+                    <h3 className="font-mono text-base font-bold text-foreground tracking-tight">
+                      {info.title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">{info.description}</p>
+                  </div>
+                </div>
+
+                <Badge variant="outline" className="font-mono text-xs">
+                  {labsInCat.length} Experiment{labsInCat.length > 1 ? "s" : ""}
+                </Badge>
+              </div>
+
+              {/* Experiment Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {labsInCat.map((lab) => {
+                  const isAvailable = lab.status === "available";
+
+                  return (
+                    <Card
+                      key={lab.id}
+                      className="flex flex-col justify-between border-border bg-card transition-all hover:border-primary/60 hover:shadow-md"
+                    >
+                      <CardHeader className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge
+                            variant={isAvailable ? "default" : "secondary"}
+                            className="font-mono text-[10px]"
+                          >
+                            {isAvailable ? "● Live Simulator" : "Manual & Theory"}
+                          </Badge>
+
+                          <div className="flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground">
+                            <span>{lab.difficulty}</span>
+                            <span>•</span>
+                            <span>{lab.estimatedDuration}</span>
+                          </div>
+                        </div>
+
+                        <CardTitle className="font-mono text-sm font-bold text-foreground leading-snug">
+                          {lab.title}
+                        </CardTitle>
+
+                        <CardDescription className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                          {lab.shortObjective}
+                        </CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="pt-2">
+                        <div className="border-t border-border pt-3 space-y-2">
+                          <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                            <span>Apparatus:</span>
+                            <span>{lab.manual.apparatus.length} Components</span>
+                          </div>
+
+                          <Link to={lab.path} className="block w-full">
+                            <Button
+                              size="sm"
+                              variant={isAvailable ? "default" : "outline"}
+                              className="w-full font-mono text-xs gap-1.5"
+                            >
+                              {isAvailable ? "🔬 Start Interactive Lab →" : "📖 Read Lab Manual →"}
+                            </Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </main>
     </div>
   );

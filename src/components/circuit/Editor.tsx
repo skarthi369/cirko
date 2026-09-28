@@ -1,11 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PART_DEFS, PART_MAP, rotatePoint } from "@/lib/parts";
-import { emptyDesign, WIRE_COLORS, type Design, type PlacedPart, type Wire, type WireEnd } from "./types";
+import {
+  emptyDesign,
+  WIRE_COLORS,
+  type Design,
+  type PlacedPart,
+  type Wire,
+  type WireEnd,
+} from "./types";
 import { simulate, fmtAmp, fmtVolt } from "@/lib/simulate";
 
 /** Ready-made demo: 9 V battery → 220 Ω resistor → red LED → back to battery. */
 function demoDesign(): Design {
-  const battery: PlacedPart = { id: "demo-bat", type: "battery", x: 140, y: 200, rotation: 0, props: { voltage: "9" } };
+  const battery: PlacedPart = {
+    id: "demo-bat",
+    type: "battery",
+    x: 140,
+    y: 200,
+    rotation: 0,
+    props: { voltage: "9" },
+  };
   const resistor: PlacedPart = {
     id: "demo-res",
     type: "resistor",
@@ -14,14 +28,36 @@ function demoDesign(): Design {
     rotation: 0,
     props: { resistance: "220" },
   };
-  const led: PlacedPart = { id: "demo-led", type: "led", x: 560, y: 220, rotation: 0, props: { color: "red" } };
+  const led: PlacedPart = {
+    id: "demo-led",
+    type: "led",
+    x: 560,
+    y: 220,
+    rotation: 0,
+    props: { color: "red" },
+  };
   return {
     name: "Battery · resistor · LED",
     parts: [battery, resistor, led],
     wires: [
-      { id: "demo-w1", from: { partId: "demo-bat", pinId: "pos" }, to: { partId: "demo-res", pinId: "a" }, color: "#ff5d5d" },
-      { id: "demo-w2", from: { partId: "demo-res", pinId: "b" }, to: { partId: "demo-led", pinId: "anode" }, color: "#f5a524" },
-      { id: "demo-w3", from: { partId: "demo-led", pinId: "cathode" }, to: { partId: "demo-bat", pinId: "neg" }, color: "#1f2933" },
+      {
+        id: "demo-w1",
+        from: { partId: "demo-bat", pinId: "pos" },
+        to: { partId: "demo-res", pinId: "a" },
+        color: "#ff5d5d",
+      },
+      {
+        id: "demo-w2",
+        from: { partId: "demo-res", pinId: "b" },
+        to: { partId: "demo-led", pinId: "anode" },
+        color: "#f5a524",
+      },
+      {
+        id: "demo-w3",
+        from: { partId: "demo-led", pinId: "cathode" },
+        to: { partId: "demo-bat", pinId: "neg" },
+        color: "#1f2933",
+      },
     ],
   };
 }
@@ -156,8 +192,8 @@ export default function Editor({
       if (!def) return;
       const rect = svgRef.current?.getBoundingClientRect();
       const center = at ?? {
-        x: (((rect?.width ?? 800) / 2) - view.x) / view.scale,
-        y: (((rect?.height ?? 600) / 2) - view.y) / view.scale,
+        x: ((rect?.width ?? 800) / 2 - view.x) / view.scale,
+        y: ((rect?.height ?? 600) / 2 - view.y) / view.scale,
       };
       const d0 = designRef.current;
       const part: PlacedPart = {
@@ -181,7 +217,9 @@ export default function Editor({
         ? {
             ...d,
             parts: d.parts.filter((p) => p.id !== selected.id),
-            wires: d.wires.filter((w) => w.from.partId !== selected.id && w.to.partId !== selected.id),
+            wires: d.wires.filter(
+              (w) => w.from.partId !== selected.id && w.to.partId !== selected.id,
+            ),
           }
         : { ...d, wires: d.wires.filter((w) => w.id !== selected.id) },
     );
@@ -192,7 +230,9 @@ export default function Editor({
     if (selected?.kind !== "part") return;
     commit((d) => ({
       ...d,
-      parts: d.parts.map((p) => (p.id === selected.id ? { ...p, rotation: (p.rotation + 90) % 360 } : p)),
+      parts: d.parts.map((p) =>
+        p.id === selected.id ? { ...p, rotation: (p.rotation + 90) % 360 } : p,
+      ),
     }));
   }, [commit, selected]);
 
@@ -238,12 +278,18 @@ export default function Editor({
     const drag = dragRef.current;
     if (!drag) return;
     if (drag.kind === "pan") {
-      setView((v) => ({ ...v, x: drag.ox + (e.clientX - drag.sx), y: drag.oy + (e.clientY - drag.sy) }));
+      setView((v) => ({
+        ...v,
+        x: drag.ox + (e.clientX - drag.sx),
+        y: drag.oy + (e.clientY - drag.sy),
+      }));
     } else {
       drag.moved = true;
       setDesign((d) => ({
         ...d,
-        parts: d.parts.map((p) => (p.id === drag.id ? { ...p, x: snap(w.x - drag.dx), y: snap(w.y - drag.dy) } : p)),
+        parts: d.parts.map((p) =>
+          p.id === drag.id ? { ...p, x: snap(w.x - drag.dx), y: snap(w.y - drag.dy) } : p,
+        ),
       }));
     }
   };
@@ -286,9 +332,13 @@ export default function Editor({
   };
 
   /* ---------- derived ---------- */
-  const selectedPart = selected?.kind === "part" ? design.parts.find((p) => p.id === selected.id) : undefined;
+  const selectedPart =
+    selected?.kind === "part" ? design.parts.find((p) => p.id === selected.id) : undefined;
   const selectedDef = selectedPart ? PART_MAP[selectedPart.type] : undefined;
-  const partById = useMemo(() => Object.fromEntries(design.parts.map((p) => [p.id, p])), [design.parts]);
+  const partById = useMemo(
+    () => Object.fromEntries(design.parts.map((p) => [p.id, p])),
+    [design.parts],
+  );
   const sim = useMemo(() => (running ? simulate(design) : null), [running, design]);
   const selectedSim = selectedPart ? sim?.parts[selectedPart.id] : undefined;
 
@@ -300,7 +350,9 @@ export default function Editor({
     (partId: string, key: string, value: string) =>
       commit((d) => ({
         ...d,
-        parts: d.parts.map((p) => (p.id === partId ? { ...p, props: { ...p.props, [key]: value } } : p)),
+        parts: d.parts.map((p) =>
+          p.id === partId ? { ...p, props: { ...p.props, [key]: value } } : p,
+        ),
       })),
     [commit],
   );
@@ -325,7 +377,11 @@ export default function Editor({
       try {
         const parsed = JSON.parse(t) as Design;
         if (Array.isArray(parsed.parts) && Array.isArray(parsed.wires)) {
-          commit(() => ({ name: parsed.name ?? "Imported circuit", parts: parsed.parts, wires: parsed.wires }));
+          commit(() => ({
+            name: parsed.name ?? "Imported circuit",
+            parts: parsed.parts,
+            wires: parsed.wires,
+          }));
         }
       } catch {
         /* ignore bad file */
@@ -334,7 +390,9 @@ export default function Editor({
   };
 
   const categories = ["Basics", "Outputs", "Inputs", "Boards"] as const;
-  const filtered = PART_DEFS.filter((d) => d.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const filtered = PART_DEFS.filter((d) =>
+    d.name.toLowerCase().includes(query.trim().toLowerCase()),
+  );
 
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground">
@@ -346,10 +404,12 @@ export default function Editor({
           </span>
           <h1 className="font-mono text-sm font-semibold tracking-tight">CirkitLab</h1>
           <Link
-            to={"/labs" as any}
-            className="ml-1 inline-flex items-center rounded border border-primary/40 bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+            to="/labs"
+            className="ml-1 inline-flex items-center gap-1.5 rounded-md border border-primary/50 bg-primary/15 px-3 py-1 font-mono text-xs font-semibold text-primary transition-all hover:bg-primary/25 hover:border-primary shadow-sm"
+            title="Open Virtual Engineering Labs (9 Interactive Experiments)"
           >
-            🧪 Labs
+            <span>🔬</span>
+            <span>Virtual Labs (9)</span>
           </Link>
         </div>
         {headerExtra}
@@ -360,11 +420,21 @@ export default function Editor({
           aria-label="Circuit name"
         />
         <div className="flex items-center gap-1">
-          <ToolButton onClick={undo} disabled={!past.length}>Undo</ToolButton>
-          <ToolButton onClick={redo} disabled={!future.length}>Redo</ToolButton>
-          <ToolButton onClick={rotateSelected} disabled={selected?.kind !== "part"}>Rotate</ToolButton>
-          <ToolButton onClick={duplicateSelected} disabled={selected?.kind !== "part"}>Duplicate</ToolButton>
-          <ToolButton onClick={deleteSelected} disabled={!selected}>Delete</ToolButton>
+          <ToolButton onClick={undo} disabled={!past.length}>
+            Undo
+          </ToolButton>
+          <ToolButton onClick={redo} disabled={!future.length}>
+            Redo
+          </ToolButton>
+          <ToolButton onClick={rotateSelected} disabled={selected?.kind !== "part"}>
+            Rotate
+          </ToolButton>
+          <ToolButton onClick={duplicateSelected} disabled={selected?.kind !== "part"}>
+            Duplicate
+          </ToolButton>
+          <ToolButton onClick={deleteSelected} disabled={!selected}>
+            Delete
+          </ToolButton>
         </div>
         <div className="flex items-center gap-1">
           <ToolButton onClick={exportJson}>Export</ToolButton>
@@ -428,7 +498,9 @@ export default function Editor({
               if (!items.length) return null;
               return (
                 <section key={cat} className="mb-5">
-                  <h2 className="mb-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">{cat}</h2>
+                  <h2 className="mb-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+                    {cat}
+                  </h2>
                   <div className="grid grid-cols-2 gap-2">
                     {items.map((def) => (
                       <button
@@ -470,10 +542,19 @@ export default function Editor({
               if (type) addPart(type, toWorld(e.clientX, e.clientY));
             }}
             onPointerDown={(e) => {
-              if (e.target === svgRef.current || (e.target as Element).classList.contains("canvas-bg")) {
+              if (
+                e.target === svgRef.current ||
+                (e.target as Element).classList.contains("canvas-bg")
+              ) {
                 setSelected(null);
                 setPending(null);
-                dragRef.current = { kind: "pan", sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y };
+                dragRef.current = {
+                  kind: "pan",
+                  sx: e.clientX,
+                  sy: e.clientY,
+                  ox: view.x,
+                  oy: view.y,
+                };
               }
             }}
           >
@@ -492,13 +573,26 @@ export default function Editor({
             <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
               {/* wires */}
               {design.wires.map((w) => {
-                const a = partById[w.from.partId] && pinWorld(partById[w.from.partId]!, w.from.pinId);
+                const a =
+                  partById[w.from.partId] && pinWorld(partById[w.from.partId]!, w.from.pinId);
                 const b = partById[w.to.partId] && pinWorld(partById[w.to.partId]!, w.to.pinId);
                 if (!a || !b) return null;
                 const isSel = selected?.kind === "wire" && selected.id === w.id;
                 return (
-                  <g key={w.id} onPointerDown={(e) => { e.stopPropagation(); setSelected({ kind: "wire", id: w.id }); }}>
-                    <path d={wirePath(a, b)} fill="none" stroke="transparent" strokeWidth={14} className="cursor-pointer" />
+                  <g
+                    key={w.id}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      setSelected({ kind: "wire", id: w.id });
+                    }}
+                  >
+                    <path
+                      d={wirePath(a, b)}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={14}
+                      className="cursor-pointer"
+                    />
                     <path
                       d={wirePath(a, b)}
                       fill="none"
@@ -545,9 +639,9 @@ export default function Editor({
               {design.parts.map((part) => {
                 const def = PART_MAP[part.type];
                 if (!def) return null;
-                 const isSel = selected?.kind === "part" && selected.id === part.id;
-                 const ps = sim?.parts[part.id];
-                 return (
+                const isSel = selected?.kind === "part" && selected.id === part.id;
+                const ps = sim?.parts[part.id];
+                return (
                   <g
                     key={part.id}
                     transform={`translate(${part.x} ${part.y})`}
@@ -555,7 +649,13 @@ export default function Editor({
                       e.stopPropagation();
                       const w = toWorld(e.clientX, e.clientY);
                       setSelected({ kind: "part", id: part.id });
-                      dragRef.current = { kind: "part", id: part.id, dx: w.x - part.x, dy: w.y - part.y, moved: false };
+                      dragRef.current = {
+                        kind: "part",
+                        id: part.id,
+                        dx: w.x - part.x,
+                        dy: w.y - part.y,
+                        moved: false,
+                      };
                       (e.target as Element).setPointerCapture?.(e.pointerId);
                     }}
                     className="cursor-move"
@@ -646,13 +746,17 @@ export default function Editor({
           </svg>
 
           <div className="pointer-events-none absolute bottom-3 left-3 rounded bg-card/85 px-3 py-2 font-mono text-[11px] text-muted-foreground">
-            Drag parts in · click two pins to wire · R rotate · Del remove · scroll to zoom · drag empty space to pan
+            Drag parts in · click two pins to wire · R rotate · Del remove · scroll to zoom · drag
+            empty space to pan
           </div>
 
           {sim && sim.notes.length > 0 && (
             <div className="absolute right-3 top-3 max-w-xs space-y-1" data-testid="sim-notes">
               {sim.notes.map((n) => (
-                <p key={n} className="rounded border border-accent/50 bg-card/95 px-3 py-2 text-[11px] text-accent">
+                <p
+                  key={n}
+                  className="rounded border border-accent/50 bg-card/95 px-3 py-2 text-[11px] text-accent"
+                >
                   {n}
                 </p>
               ))}
@@ -667,7 +771,9 @@ export default function Editor({
 
         {/* Inspector */}
         <aside className="w-64 shrink-0 overflow-y-auto border-l border-border bg-sidebar p-4">
-          <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Inspector</h2>
+          <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            Inspector
+          </h2>
 
           <div className="mb-5">
             <p className="mb-2 text-xs text-muted-foreground">Wire color</p>
@@ -705,7 +811,9 @@ export default function Editor({
                   className="rounded border border-primary/40 bg-card p-2 font-mono text-[11px] text-primary"
                   data-testid="live-readings"
                 >
-                  <p className="mb-1 uppercase tracking-wider text-muted-foreground">Live readings</p>
+                  <p className="mb-1 uppercase tracking-wider text-muted-foreground">
+                    Live readings
+                  </p>
                   <p>Voltage {fmtVolt(Math.abs(selectedSim.voltage))}</p>
                   <p>Current {fmtAmp(selectedSim.current)}</p>
                   <p>Power {(Math.abs(selectedSim.power) * 1000).toFixed(1)} mW</p>
@@ -761,7 +869,13 @@ export default function Editor({
                       ...d,
                       parts: d.parts.map((p) =>
                         p.id === selectedPart.id
-                          ? { ...p, props: { ...p.props, state: p.props['state'] === "closed" ? "open" : "closed" } }
+                          ? {
+                              ...p,
+                              props: {
+                                ...p.props,
+                                state: p.props["state"] === "closed" ? "open" : "closed",
+                              },
+                            }
                           : p,
                       ),
                     }))
@@ -773,19 +887,23 @@ export default function Editor({
               )}
               <div className="rounded border border-border bg-card p-2 text-[11px] text-muted-foreground">
                 <p className="mb-1 font-mono uppercase tracking-wider">Connections</p>
-                {design.wires.filter((w) => w.from.partId === selectedPart.id || w.to.partId === selectedPart.id)
-                  .length === 0 ? (
+                {design.wires.filter(
+                  (w) => w.from.partId === selectedPart.id || w.to.partId === selectedPart.id,
+                ).length === 0 ? (
                   <p>No wires yet.</p>
                 ) : (
                   design.wires
-                    .filter((w) => w.from.partId === selectedPart.id || w.to.partId === selectedPart.id)
+                    .filter(
+                      (w) => w.from.partId === selectedPart.id || w.to.partId === selectedPart.id,
+                    )
                     .map((w) => {
                       const other = w.from.partId === selectedPart.id ? w.to : w.from;
                       const mine = w.from.partId === selectedPart.id ? w.from : w.to;
                       const otherPart = partById[other.partId];
                       return (
                         <p key={w.id} className="font-mono">
-                          {mine.pinId} → {otherPart ? PART_MAP[otherPart.type]?.name : "?"}.{other.pinId}
+                          {mine.pinId} → {otherPart ? PART_MAP[otherPart.type]?.name : "?"}.
+                          {other.pinId}
                         </p>
                       );
                     })
@@ -793,7 +911,9 @@ export default function Editor({
               </div>
             </div>
           ) : selected?.kind === "wire" ? (
-            <p className="text-xs text-muted-foreground">Wire selected. Pick a color above or press Delete.</p>
+            <p className="text-xs text-muted-foreground">
+              Wire selected. Pick a color above or press Delete.
+            </p>
           ) : (
             <p className="text-xs text-muted-foreground">
               Select a part on the canvas to edit its values, or drag a new one in from the left.

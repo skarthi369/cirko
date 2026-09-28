@@ -116,8 +116,6 @@
   --sidebar-ring: oklch(0.78 0.15 187);
 }
 
-
-
 @layer base {
   * {
     border-color: var(--color-border);
@@ -130,7 +128,10 @@
     overscroll-behavior: none;
   }
 
-  h1, h2, h3, .font-display {
+  h1,
+  h2,
+  h3,
+  .font-display {
     font-family: var(--font-mono);
     letter-spacing: -0.01em;
   }
