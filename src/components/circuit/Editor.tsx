@@ -346,7 +346,7 @@ export default function Editor({
           </span>
           <h1 className="font-mono text-sm font-semibold tracking-tight">CirkitLab</h1>
           <Link
-            to="/labs"
+            to={"/labs" as any}
             className="ml-1 inline-flex items-center rounded border border-primary/40 bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
           >
             🧪 Labs
