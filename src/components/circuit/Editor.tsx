@@ -26,7 +26,17 @@ function demoDesign(): Design {
   };
 }
 
-const STORAGE_KEY = "cirkit.design.v1";
+import { Link } from "@tanstack/react-router";
+import type { SimResult } from "@/lib/simulate";
+
+export type EditorProps = {
+  storageKey?: string | null;
+  initialDesign?: Design;
+  onDesignChange?: (design: Design, sim: SimResult | null) => void;
+  headerExtra?: React.ReactNode;
+};
+
+const DEFAULT_STORAGE_KEY = "cirkit.design.v1";
 const GRID = 10;
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -45,8 +55,13 @@ type Drag =
   | { kind: "pan"; sx: number; sy: number; ox: number; oy: number }
   | null;
 
-export default function Editor() {
-  const [design, setDesign] = useState<Design>(emptyDesign);
+export default function Editor({
+  storageKey = DEFAULT_STORAGE_KEY,
+  initialDesign,
+  onDesignChange,
+  headerExtra,
+}: EditorProps = {}) {
+  const [design, setDesign] = useState<Design>(initialDesign ?? emptyDesign);
   const [past, setPast] = useState<Design[]>([]);
   const [future, setFuture] = useState<Design[]>([]);
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
@@ -60,27 +75,31 @@ export default function Editor() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const dragRef = useRef<Drag>(null);
   const loadedRef = useRef(false);
-  const designRef = useRef<Design>(emptyDesign());
+  const designRef = useRef<Design>(initialDesign ?? emptyDesign());
 
   /* ---------- persistence ---------- */
   useEffect(() => {
+    if (!storageKey) {
+      loadedRef.current = true;
+      return;
+    }
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(storageKey);
       if (raw) setDesign(JSON.parse(raw) as Design);
     } catch {
       /* ignore corrupt saves */
     }
     loadedRef.current = true;
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
     designRef.current = design;
-    if (!loadedRef.current) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(design));
+    if (!loadedRef.current || !storageKey) return;
+    localStorage.setItem(storageKey, JSON.stringify(design));
     setSaved(true);
     const t = setTimeout(() => setSaved(false), 1200);
     return () => clearTimeout(t);
-  }, [design]);
+  }, [design, storageKey]);
 
   /* ---------- history ---------- */
   const commit = useCallback((updater: (d: Design) => Design) => {
@@ -273,6 +292,10 @@ export default function Editor() {
   const sim = useMemo(() => (running ? simulate(design) : null), [running, design]);
   const selectedSim = selectedPart ? sim?.parts[selectedPart.id] : undefined;
 
+  useEffect(() => {
+    onDesignChange?.(design, sim);
+  }, [design, sim, onDesignChange]);
+
   const setProp = useCallback(
     (partId: string, key: string, value: string) =>
       commit((d) => ({
@@ -322,7 +345,14 @@ export default function Editor() {
             C
           </span>
           <h1 className="font-mono text-sm font-semibold tracking-tight">CirkitLab</h1>
+          <Link
+            to="/labs"
+            className="ml-1 inline-flex items-center rounded border border-primary/40 bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+          >
+            🧪 Labs
+          </Link>
         </div>
+        {headerExtra}
         <input
           value={design.name}
           onChange={(e) => setDesign((d) => ({ ...d, name: e.target.value }))}

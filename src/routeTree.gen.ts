@@ -10,33 +10,58 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LabsIndexRouteImport } from './routes/labs/index'
+import { Route as LabsOpticalCommunicationCharacterizationLedRouteImport } from './routes/labs/optical-communication/characterization-led'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LabsIndexRoute = LabsIndexRouteImport.update({
+  id: '/labs/',
+  path: '/labs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabsOpticalCommunicationCharacterizationLedRoute =
+  LabsOpticalCommunicationCharacterizationLedRouteImport.update({
+    id: '/labs/optical-communication/characterization-led',
+    path: '/labs/optical-communication/characterization-led',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/labs/': typeof LabsIndexRoute
+  '/labs/optical-communication/characterization-led': typeof LabsOpticalCommunicationCharacterizationLedRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/labs': typeof LabsIndexRoute
+  '/labs/optical-communication/characterization-led': typeof LabsOpticalCommunicationCharacterizationLedRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/labs/': typeof LabsIndexRoute
+  '/labs/optical-communication/characterization-led': typeof LabsOpticalCommunicationCharacterizationLedRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/labs/' | '/labs/optical-communication/characterization-led'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/labs' | '/labs/optical-communication/characterization-led'
+  id:
+    | '__root__'
+    | '/'
+    | '/labs/'
+    | '/labs/optical-communication/characterization-led'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LabsIndexRoute: typeof LabsIndexRoute
+  LabsOpticalCommunicationCharacterizationLedRoute: typeof LabsOpticalCommunicationCharacterizationLedRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +73,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/labs/': {
+      id: '/labs/'
+      path: '/labs'
+      fullPath: '/labs/'
+      preLoaderRoute: typeof LabsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labs/optical-communication/characterization-led': {
+      id: '/labs/optical-communication/characterization-led'
+      path: '/labs/optical-communication/characterization-led'
+      fullPath: '/labs/optical-communication/characterization-led'
+      preLoaderRoute: typeof LabsOpticalCommunicationCharacterizationLedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LabsIndexRoute: LabsIndexRoute,
+  LabsOpticalCommunicationCharacterizationLedRoute:
+    LabsOpticalCommunicationCharacterizationLedRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
